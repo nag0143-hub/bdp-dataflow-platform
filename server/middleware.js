@@ -2,6 +2,7 @@ import express from 'express';
 import { initializeDatabase, pool, entityNameToTable, sanitizeFieldName, config, ENTITY_TABLES } from './db.js';
 import { testConnection } from './test-connection.js';
 import airflowRouter from './airflow-proxy.js';
+import ldapAuthRouter from './ldap-auth.js';
 import { gitlabCommitFiles, gitlabCheckStatus, getGitLabConfig } from './gitlab.js';
 
 function formatRecord(row, tableName) {
@@ -194,13 +195,7 @@ export function createApiMiddleware() {
     }
   });
 
-  app.get('/api/auth/me', (req, res) => {
-    res.json({ ...config.auth.mockUser, is_authenticated: true });
-  });
-
-  app.post('/api/auth/logout', (req, res) => {
-    res.json({ success: true });
-  });
+  app.use('/api/auth', ldapAuthRouter);
 
   app.get('/api/apps/public/prod/public-settings/by-id/:appId', (req, res) => {
     res.json({

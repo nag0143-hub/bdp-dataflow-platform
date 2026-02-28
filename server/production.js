@@ -7,6 +7,7 @@ import rateLimit from 'express-rate-limit';
 import { initializeDatabase, pool, entityNameToTable, sanitizeFieldName, config } from './db.js';
 import { testConnection } from './test-connection.js';
 import airflowRouter from './airflow-proxy.js';
+import ldapAuthRouter from './ldap-auth.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -192,11 +193,7 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
-app.get('/api/auth/me', (req, res) => {
-  res.json({ ...config.auth.mockUser, is_authenticated: true });
-});
-
-app.post('/api/auth/logout', (req, res) => res.json({ success: true }));
+app.use('/api/auth', ldapAuthRouter);
 
 app.get('/api/apps/public/prod/public-settings/by-id/:appId', (req, res) => {
   res.json({ appId: req.params.appId, name: 'DataFlow', requiresAuth: false, status: 'active' });

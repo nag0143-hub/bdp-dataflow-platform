@@ -1,13 +1,11 @@
 import { useState } from "react";
-import { Workflow, Lock, Eye, EyeOff, LogIn, CheckCircle2, Users, Key, Shield, AlertCircle, LogOut, Database, GitBranch, Wind, Cable } from "lucide-react";
+import { Workflow, Lock, Eye, EyeOff, LogIn, CheckCircle2, Users, Key, Shield, AlertCircle, LogOut, Database, GitBranch, Wind, Cable, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-
-const DEFAULT_USER = "admin";
-const DEFAULT_PASS = "admin";
+import { dataflow } from "@/api/client";
 
 export default function LDAPIntegration() {
   const [username, setUsername] = useState("");
@@ -15,14 +13,25 @@ export default function LDAPIntegration() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loggedIn, setLoggedIn] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    if (username === DEFAULT_USER && password === DEFAULT_PASS) {
-      setError("");
+    if (!username.trim() || !password) {
+      setError("Please enter your username and password");
+      return;
+    }
+    setLoading(true);
+    setError("");
+    try {
+      const result = await dataflow.auth.login(username, password);
+      setCurrentUser(result.user);
       setLoggedIn(true);
-    } else {
-      setError("Invalid credentials. Use the default administrator account.");
+    } catch (err) {
+      setError(err.message || "Authentication failed");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -55,12 +64,12 @@ export default function LDAPIntegration() {
             <CardContent className="p-6">
               <form onSubmit={handleLogin} className="space-y-4">
                 <div className="space-y-1.5">
-                  <Label className="dark:text-slate-300">LDAP Username</Label>
+                  <Label className="dark:text-slate-300">Preferred ID</Label>
                   <Input
                     autoFocus
                     value={username}
                     onChange={e => { setUsername(e.target.value); setError(""); }}
-                    placeholder="Enter your username"
+                    placeholder="Enter your preferred ID"
                     className="dark:bg-slate-700 dark:border-slate-600 dark:text-white"
                   />
                 </div>
@@ -91,16 +100,16 @@ export default function LDAPIntegration() {
                   </p>
                 )}
 
-                <Button type="submit" className="w-full gap-2 bg-[#0060AF] hover:bg-[#004d8c] text-white">
-                  <LogIn className="w-4 h-4" />
-                  Sign In
+                <Button type="submit" disabled={loading} className="w-full gap-2 bg-[#0060AF] hover:bg-[#004d8c] text-white">
+                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogIn className="w-4 h-4" />}
+                  {loading ? "Authenticating..." : "Sign In"}
                 </Button>
               </form>
             </CardContent>
           </Card>
 
           <p className="text-center text-xs text-slate-400 dark:text-slate-500">
-            Secured with LDAP directory authentication
+            Secured with US Bank LDAP directory authentication
           </p>
         </div>
       </div>
@@ -116,7 +125,7 @@ export default function LDAPIntegration() {
           </div>
           <div>
             <h1 className="text-xl font-bold text-slate-900 dark:text-white">DataFlow</h1>
-            <p className="text-slate-500 dark:text-slate-400 text-sm">Logged in as <strong className="dark:text-slate-200">{DEFAULT_USER}</strong></p>
+            <p className="text-slate-500 dark:text-slate-400 text-sm">Logged in as <strong className="dark:text-slate-200">{currentUser?.name || username}</strong></p>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -124,7 +133,7 @@ export default function LDAPIntegration() {
             <CheckCircle2 className="w-3.5 h-3.5" />
             Authenticated
           </Badge>
-          <Button variant="outline" size="sm" className="gap-1.5 dark:border-slate-600 dark:text-slate-300" onClick={() => { setLoggedIn(false); setUsername(""); setPassword(""); }}>
+          <Button variant="outline" size="sm" className="gap-1.5 dark:border-slate-600 dark:text-slate-300" onClick={async () => { await dataflow.auth.logout(); setLoggedIn(false); setUsername(""); setPassword(""); setCurrentUser(null); }}>
             <LogOut className="w-3.5 h-3.5" />
             Sign Out
           </Button>
@@ -143,18 +152,18 @@ export default function LDAPIntegration() {
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
-          { icon: Users, label: "Directory Users", value: "—", note: "Sync pending" },
-          { icon: Key, label: "Group Mappings", value: "—", note: "Not configured" },
-          { icon: Shield, label: "Access Policies", value: "—", note: "Not configured" },
+          { icon: Users, label: "User", value: currentUser?.name || username, note: currentUser?.email || "" },
+          { icon: Key, label: "Role", value: currentUser?.role || "viewer", note: "LDAP group mapping" },
+          { icon: Shield, label: "Domain", value: "us.bank-dns.com", note: "Active Directory" },
         ].map(({ icon: Icon, label, value, note }) => (
           <Card key={label} className="border-slate-200 dark:border-slate-700 dark:bg-slate-800">
             <CardContent className="p-5 flex items-center gap-4">
               <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-700 flex items-center justify-center shrink-0">
-                <Icon className="w-5 h-5 text-slate-400 dark:text-slate-500" />
+                <Icon className="w-5 h-5 text-[#0060AF] dark:text-blue-400" />
               </div>
               <div>
                 <p className="text-xs text-slate-500 dark:text-slate-400">{label}</p>
-                <p className="text-lg font-bold text-slate-400 dark:text-slate-500">{value}</p>
+                <p className="text-sm font-bold text-slate-900 dark:text-slate-100 capitalize">{value}</p>
                 <p className="text-xs text-slate-400 dark:text-slate-500">{note}</p>
               </div>
             </CardContent>

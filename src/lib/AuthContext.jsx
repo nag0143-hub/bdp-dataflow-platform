@@ -23,23 +23,21 @@ export const AuthProvider = ({ children }) => {
       setUser(currentUser);
       setIsAuthenticated(true);
     } catch (error) {
-      console.error('Auth check failed:', error);
-      setAuthError({
-        type: 'unknown',
-        message: error.message || 'Failed to authenticate'
-      });
+      setUser(null);
+      setIsAuthenticated(false);
     } finally {
       setIsLoadingAuth(false);
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    await dataflow.auth.logout();
     setUser(null);
     setIsAuthenticated(false);
   };
 
   const navigateToLogin = () => {
-    console.log('Login redirect not needed in local mode');
+    dataflow.auth.redirectToLogin();
   };
 
   return (

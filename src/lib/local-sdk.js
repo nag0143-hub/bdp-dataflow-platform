@@ -130,15 +130,37 @@ export function createClient() {
 
   const auth = {
     async me() {
-      const res = await fetch(`${API_BASE}/auth/me`);
+      const sessionId = sessionStorage.getItem('dataflow-session-id');
+      const headers = {};
+      if (sessionId) headers['x-session-id'] = sessionId;
+      const res = await fetch(`${API_BASE}/auth/me`, { headers });
       if (!res.ok) throw new Error('Auth failed');
       return res.json();
     },
+    async login(username, password) {
+      const res = await fetch(`${API_BASE}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Login failed');
+      if (data.sessionId) {
+        sessionStorage.setItem('dataflow-session-id', data.sessionId);
+      }
+      return data;
+    },
     async logout() {
+      const sessionId = sessionStorage.getItem('dataflow-session-id');
+      const headers = {};
+      if (sessionId) headers['x-session-id'] = sessionId;
+      await fetch(`${API_BASE}/auth/logout`, { method: 'POST', headers });
+      sessionStorage.removeItem('dataflow-session-id');
       return { success: true };
     },
     redirectToLogin() {
-      console.log('Login redirect not needed in local mode');
+      sessionStorage.removeItem('dataflow-session-id');
+      window.location.href = '/';
     },
     async loginViaEmailPassword() {
       return auth.me();

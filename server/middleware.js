@@ -334,6 +334,17 @@ export function createApiMiddleware() {
       const data = { ...req.body };
       const createdBy = data.created_by || 'user@local';
       delete data.created_by;
+
+      if ((table === 'pipeline' || table === 'connection') && data.name?.trim()) {
+        const existing = await pool.query(
+          `SELECT id FROM "${table}" WHERE data->>'name' = $1 LIMIT 1`,
+          [data.name.trim()]
+        );
+        if (existing.rows.length > 0) {
+          return res.status(409).json({ error: `A ${table} with the name "${data.name}" already exists.` });
+        }
+      }
+
       const result = await pool.query(
         `INSERT INTO "${table}" (data, created_by) VALUES ($1, $2) RETURNING *`,
         [JSON.stringify(data), createdBy]
@@ -361,6 +372,16 @@ export function createApiMiddleware() {
         if (data.vault_config) {
           if (data.vault_config.vault_role_id === REDACTED) delete data.vault_config.vault_role_id;
           if (data.vault_config.vault_secret_id === REDACTED) delete data.vault_config.vault_secret_id;
+        }
+      }
+
+      if ((table === 'pipeline' || table === 'connection') && data.name?.trim()) {
+        const existing = await pool.query(
+          `SELECT id FROM "${table}" WHERE data->>'name' = $1 AND id != $2 LIMIT 1`,
+          [data.name.trim(), parseInt(req.params.id)]
+        );
+        if (existing.rows.length > 0) {
+          return res.status(409).json({ error: `A ${table} with the name "${data.name}" already exists.` });
         }
       }
 

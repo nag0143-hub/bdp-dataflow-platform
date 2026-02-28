@@ -31,8 +31,8 @@ export default function JobFormDialog({
   const [deployStatus, setDeployStatus] = useState(null);
 
   const FLAT_FILE_PLATFORMS = ["flat_file_delimited", "flat_file_fixed_width", "cobol_ebcdic", "sftp", "nas", "local_fs"];
-  const sourceConnections = connections.filter(c => c.connection_type === "source");
-  const targetConnections = connections.filter(c => c.connection_type === "target");
+  const sourceConnections = connections;
+  const targetConnections = connections;
   const sourceConn = connections.find(c => c.id === formData.source_connection_id);
   const isFileWildcard = sourceConn && FLAT_FILE_PLATFORMS.includes(sourceConn.platform) && formData.file_source_mode === "wildcard";
   const canShowAdvanced = formData.enable_advanced && !isFileWildcard;
@@ -61,6 +61,9 @@ export default function JobFormDialog({
   const getErrors = () => {
     const e = {};
     if (!formData.name?.trim()) e.name = "Pipeline name is required.";
+    else if (pipelines.some(p => p.name?.toLowerCase() === formData.name.trim().toLowerCase() && p.id !== editingJob?.id)) {
+      e.name = "A pipeline with this name already exists.";
+    }
     if (!formData.source_connection_id) e.source_connection_id = "Please select a source connection.";
     if (!formData.target_connection_id) e.target_connection_id = "Please select a target connection.";
     if (formData.source_connection_id && formData.source_connection_id === formData.target_connection_id) {
@@ -115,6 +118,8 @@ export default function JobFormDialog({
         toast.success("Pipeline draft saved");
         onSaveSuccess?.();
       }
+    } catch (err) {
+      toast.error(err.message || "Failed to save pipeline draft");
     } finally {
       setSaving(false);
     }
@@ -153,6 +158,8 @@ export default function JobFormDialog({
       }
       onOpenChange(false);
       onSaveSuccess?.();
+    } catch (err) {
+      toast.error(err.message || "Failed to save pipeline");
     } finally {
       setSaving(false);
     }

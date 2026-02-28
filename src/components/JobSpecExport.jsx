@@ -20,7 +20,6 @@ function connDetails(conn) {
   return {
     name: conn.name,
     platform: conn.platform,
-    connection_type: conn.connection_type,
     host: conn.host || undefined,
     port: conn.port || undefined,
     database: conn.database || undefined,

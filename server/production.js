@@ -253,6 +253,17 @@ app.post('/api/entities/:entityName', async (req, res) => {
     const data = { ...req.body };
     const createdBy = data.created_by || 'user@local';
     delete data.created_by;
+
+    if ((table === 'pipeline' || table === 'connection') && data.name?.trim()) {
+      const existing = await pool.query(
+        `SELECT id FROM "${table}" WHERE data->>'name' = $1 LIMIT 1`,
+        [data.name.trim()]
+      );
+      if (existing.rows.length > 0) {
+        return res.status(409).json({ error: `A ${table} with the name "${data.name}" already exists.` });
+      }
+    }
+
     const result = await pool.query(
       `INSERT INTO "${table}" (data, created_by) VALUES ($1, $2) RETURNING *`,
       [JSON.stringify(data), createdBy]
@@ -268,6 +279,17 @@ app.put('/api/entities/:entityName/:id', async (req, res) => {
     const table = entityNameToTable(req.params.entityName);
     const data = { ...req.body };
     delete data.id; delete data.created_date; delete data.updated_date; delete data.created_by;
+
+    if ((table === 'pipeline' || table === 'connection') && data.name?.trim()) {
+      const existing = await pool.query(
+        `SELECT id FROM "${table}" WHERE data->>'name' = $1 AND id != $2 LIMIT 1`,
+        [data.name.trim(), parseInt(req.params.id)]
+      );
+      if (existing.rows.length > 0) {
+        return res.status(409).json({ error: `A ${table} with the name "${data.name}" already exists.` });
+      }
+    }
+
     const result = await pool.query(
       `UPDATE "${table}" SET data = data || $1, updated_date = NOW() WHERE id = $2 RETURNING *`,
       [JSON.stringify(data), parseInt(req.params.id)]

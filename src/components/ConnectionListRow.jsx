@@ -26,7 +26,7 @@ export default function ConnectionListRow({
       {/* Name + type */}
       <div className="w-52 min-w-0">
         <p className="font-medium text-slate-900 dark:text-white truncate">{connection.name}</p>
-        <p className="text-xs text-slate-500 capitalize">{connection.connection_type}</p>
+        <p className="text-xs text-slate-500 capitalize">{platformConfig[connection.platform]?.label || connection.platform}</p>
       </div>
 
       {/* Platform label */}

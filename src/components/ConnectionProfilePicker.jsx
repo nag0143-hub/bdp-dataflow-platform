@@ -26,7 +26,7 @@ export default function ConnectionProfilePicker({ onApply }) {
   const [profiles, setProfiles] = useState([]);
   const [search, setSearch] = useState("");
   const [creating, setCreating] = useState(false);
-  const [newProfile, setNewProfile] = useState({ name: "", description: "", platform: "", connection_type: "source" });
+  const [newProfile, setNewProfile] = useState({ name: "", description: "", platform: "" });
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -59,7 +59,7 @@ export default function ConnectionProfilePicker({ onApply }) {
     setSaving(true);
     await dataflow.entities.ConnectionProfile.create(newProfile);
     toast.success(`Profile "${newProfile.name}" saved`);
-    setNewProfile({ name: "", description: "", platform: "", connection_type: "source" });
+    setNewProfile({ name: "", description: "", platform: "" });
     setCreating(false);
     setSaving(false);
     loadProfiles();
@@ -143,16 +143,6 @@ export default function ConnectionProfilePicker({ onApply }) {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div>
-                    <Label className="text-xs">Type</Label>
-                    <Select value={newProfile.connection_type} onValueChange={v => setNewProfile({ ...newProfile, connection_type: v })}>
-                      <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="source" className="text-xs">Source</SelectItem>
-                        <SelectItem value="target" className="text-xs">Target</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
                   <div className="col-span-2">
                     <Label className="text-xs">Description</Label>
                     <Textarea
@@ -193,7 +183,6 @@ export default function ConnectionProfilePicker({ onApply }) {
                       <p className="text-sm font-semibold text-slate-800 truncate">{profile.name}</p>
                       <p className="text-xs text-slate-500 truncate">
                         {platformConfig[profile.platform]?.label || profile.platform}
-                        {profile.connection_type && ` · ${profile.connection_type}`}
                         {profile.description && ` · ${profile.description}`}
                       </p>
                     </div>

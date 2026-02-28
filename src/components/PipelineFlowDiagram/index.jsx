@@ -91,7 +91,6 @@ export default function PipelineFlowDiagram({
             title={sourceConnection.name}
             description={sourceConnection.platform}
             metadata={[
-              { label: "Type", value: sourceConnection.connection_type },
               { label: "Platform", value: sourceConnection.platform }
             ]}
           />
@@ -134,7 +133,6 @@ export default function PipelineFlowDiagram({
             title={targetConnection.name}
             description={targetConnection.platform}
             metadata={[
-              { label: "Type", value: targetConnection.connection_type },
               { label: "Load Method", value: job.load_method || "append" }
             ]}
           />

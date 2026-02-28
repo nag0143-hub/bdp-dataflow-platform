@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { dataflow } from '@/api/client';
 import { 
   Plus, Search, MoreVertical, Edit, Trash2, TestTube,
-  Cable, Filter, Shield, CheckCircle2, XCircle, Loader2, Wifi, BookOpen, RefreshCw,
+  Cable, Shield, CheckCircle2, XCircle, Loader2, Wifi, BookOpen, RefreshCw,
   Tag, X, Layers, LayoutGrid, List, Lock, KeyRound, ExternalLink
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -108,7 +108,7 @@ const DEFAULT_VAULT_CONFIG = {
 
 const defaultFormData = {
   name: "", source_system_name: "", description: "", car_id: "",
-  connection_type: "source", platform: "", host: "", port: "", database: "",
+  platform: "", host: "", port: "", database: "",
   username: "", password: "", connection_string: "", auth_method: "password",
   region: "", bucket_container: "", ssl: false,
   status: "active", notes: "", tags: [],
@@ -127,7 +127,6 @@ export default function Connections() {
   const [prereqs, setPrereqs] = useState([]);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterType, setFilterType] = useState("all");
   const [groupByTag, setGroupByTag] = useState(false);
   const [viewMode, setViewMode] = useState("grid"); // "grid" | "list"
   const [tagInput, setTagInput] = useState("");
@@ -175,6 +174,11 @@ export default function Connections() {
     e.preventDefault();
     if (!formData.name?.trim()) { toast.error("Connection name is required"); return; }
     if (!formData.platform) { toast.error("Platform is required"); return; }
+    const duplicateName = connections.some(c =>
+      c.name?.toLowerCase() === formData.name.trim().toLowerCase() &&
+      c.id !== editingConnection?.id
+    );
+    if (duplicateName) { toast.error(`A connection with the name "${formData.name.trim()}" already exists.`); return; }
 
     setSaving(true);
     const payload = { ...formData, port: formData.port ? Number(formData.port) : null, last_tested: null };
@@ -195,7 +199,7 @@ export default function Connections() {
       loadData();
     } catch (err) {
       console.error("[Connections] handleSubmit error:", err);
-      toast.error(editingConnection ? "Failed to update connection" : "Failed to create connection");
+      toast.error(err.message || (editingConnection ? "Failed to update connection" : "Failed to create connection"));
     } finally {
       setSaving(false);
     }
@@ -206,7 +210,7 @@ export default function Connections() {
     setFormData({
       name: connection.name || "", source_system_name: connection.source_system_name || "",
       description: connection.description || "", car_id: connection.car_id || "",
-      connection_type: connection.connection_type || "source", platform: connection.platform || "",
+      platform: connection.platform || "",
       host: connection.host || "", port: connection.port || "", database: connection.database || "",
       username: connection.username || "", password: connection.password || "",
       connection_string: connection.connection_string || "",
@@ -295,8 +299,8 @@ export default function Connections() {
       (c.name || "").toLowerCase().includes(term) ||
       (c.platform || "").toLowerCase().includes(term) ||
       (c.tags || []).some(tag => tag.toLowerCase().includes(term));
-    return matchesSearch && (filterType === "all" || c.connection_type === filterType);
-  }), [connections, searchTerm, filterType]);
+    return matchesSearch;
+  }), [connections, searchTerm]);
 
   // Collect all unique tags across all connections
   const allTags = [...new Set(connections.flatMap(c => c.tags || []))].sort();
@@ -336,7 +340,7 @@ export default function Connections() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-foreground tracking-tight">Connections</h1>
-            <p className="text-muted-foreground mt-0.5">Manage your data sources and targets</p>
+            <p className="text-muted-foreground mt-0.5">Manage your data connections</p>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={loadData} title="Refresh">
@@ -355,17 +359,6 @@ export default function Connections() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <Input placeholder="Search by name, platform, or tag..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10" />
           </div>
-          <Select value={filterType} onValueChange={setFilterType}>
-            <SelectTrigger className="w-40">
-              <Filter className="w-4 h-4 mr-2 text-slate-400" />
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Types</SelectItem>
-              <SelectItem value="source">Sources</SelectItem>
-              <SelectItem value="target">Targets</SelectItem>
-            </SelectContent>
-          </Select>
           <Button
             variant={groupByTag ? "default" : "outline"}
             className="gap-2 shrink-0"
@@ -490,17 +483,10 @@ export default function Connections() {
                       <Input value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} placeholder="Connection description" />
                     </div>
                     <div>
-                      <Label>Type</Label>
-                      <Select value={formData.connection_type} onValueChange={(v) => setFormData({...formData, connection_type: v})}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent><SelectItem value="source">Source</SelectItem><SelectItem value="target">Target</SelectItem></SelectContent>
-                      </Select>
-                    </div>
-                    <div>
                       <Label>Platform *</Label>
                       <Select value={formData.platform} onValueChange={(v) => {
                         const template = PLATFORM_TEMPLATES[v] || {};
-                        setFormData(prev => ({ ...defaultFormData, name: prev.name, source_system_name: prev.source_system_name, description: prev.description, car_id: prev.car_id, connection_type: prev.connection_type, status: prev.status, notes: prev.notes, platform: v, ...template, file_config: { ...defaultFormData.file_config, ...(template.file_config || {}) } }));
+                        setFormData(prev => ({ ...defaultFormData, name: prev.name, source_system_name: prev.source_system_name, description: prev.description, car_id: prev.car_id, status: prev.status, notes: prev.notes, platform: v, ...template, file_config: { ...defaultFormData.file_config, ...(template.file_config || {}) } }));
                       }}>
                         <SelectTrigger><SelectValue placeholder="Select platform" /></SelectTrigger>
                         <SelectContent>

@@ -41,7 +41,10 @@ function createEntityProxy(entityName) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
       });
-      if (!res.ok) throw new Error(`Failed to create ${entityName}: ${res.status}`);
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `Failed to create ${entityName}: ${res.status}`);
+      }
       return res.json();
     },
 
@@ -51,7 +54,10 @@ function createEntityProxy(entityName) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
       });
-      if (!res.ok) throw new Error(`Failed to update ${entityName}/${id}: ${res.status}`);
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `Failed to update ${entityName}/${id}: ${res.status}`);
+      }
       return res.json();
     },
 

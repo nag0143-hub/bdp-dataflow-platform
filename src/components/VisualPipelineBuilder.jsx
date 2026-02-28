@@ -83,11 +83,8 @@ function NodeConfigDialog({ node, connections, open, onClose, onSave }) {
                     <SelectValue placeholder="Select source connection..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {connections.filter(c => c.connection_type === "source" || c.connection_type === "monitoring").map(c => (
+                    {connections.map(c => (
                       <SelectItem key={c.id} value={c.id}>{c.name} <span className="text-slate-400 ml-1">({c.platform})</span></SelectItem>
-                    ))}
-                    {connections.filter(c => !["source","target","monitoring"].includes(c.connection_type)).map(c => (
-                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -216,11 +213,8 @@ function NodeConfigDialog({ node, connections, open, onClose, onSave }) {
                     <SelectValue placeholder="Select target connection..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {connections.filter(c => c.connection_type === "target" || c.connection_type === "monitoring").map(c => (
+                    {connections.map(c => (
                       <SelectItem key={c.id} value={c.id}>{c.name} <span className="text-slate-400 ml-1">({c.platform})</span></SelectItem>
-                    ))}
-                    {connections.filter(c => !["source","target","monitoring"].includes(c.connection_type)).map(c => (
-                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

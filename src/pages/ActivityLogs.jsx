@@ -120,9 +120,9 @@ export default function ActivityLogs() {
             },
             limit: logsPerPage * currentPage,
           });
-          return res.data;
+          return res;
         });
-        setLogs(result.items || []);
+        setLogs(result?.items || []);
       } catch (err) {
         console.error('[ActivityLogs] Server search error:', err);
       } finally {

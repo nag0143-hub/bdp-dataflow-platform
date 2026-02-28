@@ -164,7 +164,7 @@ export default function Pipelines() {
                 cursor: params.cursor,
                 limit: params.limit,
               });
-              return res.data;
+              return res;
             });
           });
         } catch (err) {
@@ -555,7 +555,7 @@ export default function Pipelines() {
                             cursor: null,
                             limit: 50,
                           });
-                          return res.data;
+                          return res;
                         });
                       } catch (err) {
                         console.error('[Pipelines] Load more error:', err);

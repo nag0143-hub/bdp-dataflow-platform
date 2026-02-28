@@ -452,13 +452,13 @@ export function createApiMiddleware() {
         case 'searchPipelines': {
           const { searchTerm, filters, limit } = req.body;
           const items = await searchEntities('pipeline', searchTerm, filters, limit);
-          res.json(items);
+          res.json({ items, nextCursor: null, hasMore: false });
           break;
         }
         case 'searchConnections': {
           const { searchTerm, filters, limit } = req.body;
           const items = await searchEntities('connection', searchTerm, filters, limit);
-          res.json(items);
+          res.json({ items, nextCursor: null, hasMore: false });
           break;
         }
         case 'searchActivityLogs': {

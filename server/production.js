@@ -343,12 +343,14 @@ app.post('/api/functions/:functionName', async (req, res) => {
     switch (functionName) {
       case 'searchPipelines': {
         const { searchTerm, filters, limit } = req.body;
-        res.json(await searchEntities('pipeline', searchTerm, filters, limit));
+        const pipelineItems = await searchEntities('pipeline', searchTerm, filters, limit);
+        res.json({ items: pipelineItems, nextCursor: null, hasMore: false });
         break;
       }
       case 'searchConnections': {
         const { searchTerm, filters, limit } = req.body;
-        res.json(await searchEntities('connection', searchTerm, filters, limit));
+        const connectionItems = await searchEntities('connection', searchTerm, filters, limit);
+        res.json({ items: connectionItems, nextCursor: null, hasMore: false });
         break;
       }
       case 'searchActivityLogs': {

@@ -9,14 +9,30 @@ import { Button } from "@/components/ui/button";
 
 const FLAT_FILE_PLATFORMS = ["flat_file_delimited", "flat_file_fixed_width", "cobol_ebcdic", "sftp", "nas", "local_fs"];
 
+const TAG_COLORS = {
+  prod: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
+  production: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
+  dev: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300",
+  development: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300",
+  uat: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
+  staging: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
+  test: "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300",
+};
+
 function ConnectionCard({ conn }) {
   const cfg = platformConfig[conn?.platform] || {};
   const Icon = cfg.icon;
+  const tags = conn?.tags || [];
   return (
     <div className="flex items-center gap-2 py-0.5">
       {Icon && <Icon className={`w-4 h-4 ${cfg.color || "text-slate-400"}`} />}
       <span className="font-medium">{conn?.name}</span>
       <span className="text-slate-400 text-xs">({cfg.label || conn?.platform})</span>
+      {tags.slice(0, 2).map(tag => (
+        <span key={tag} className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${TAG_COLORS[tag.toLowerCase()] || "bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400"}`}>
+          {tag}
+        </span>
+      ))}
     </div>
   );
 }

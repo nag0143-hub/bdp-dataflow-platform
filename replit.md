@@ -80,7 +80,7 @@ Pipeline, Connection, PipelineRun, ActivityLog, AuditLog, IngestionJob, AirflowD
 - **Airflow DAG Generation** (template-based, dag-factory format): Users select from pre-built YAML templates (`DagTemplates.js`) — values auto-filled from pipeline spec. Built-in templates: "Flat File — Landing to Raw" (sensor → ingest → optional transform), "Flat File — Simple Ingest" (no sensor), "Database — Extract to DWH" (SparkSubmit per dataset). Template selection stored in `dag_template_id` on pipeline formData. Configurable DAG callable base path (default `/data/dags/`). Schedule mapped from form: @once/@daily/@weekly/cron etc.
 - **Pipeline Wizard Tabs**: Basics → Datasets → Schedule → [Advanced] → Review → Deploy. "Review" tab shows template selection + generated YAML preview + validation. "Deploy" tab shows artifact cards + GitLab (LDAP) settings + branch/commit message + deploy button. Deploy flow: save pipeline first, then commit artifacts to git. Components: `JobFormDialog.jsx` (wizard), `JobSpecTabPreview.jsx` (review), `DeployTabContent.jsx` (deploy).
 - **Advanced Tab Layout**: Left-pane vertical navigation (Data Cleansing, Data Quality, Column Mapping, Security & Masking, SLA Configuration) with full-width content area on the right. Dataset selector tabs at top. Active section highlighted in #0060AF blue. Syncs active dataset with selected_datasets changes.
-- **Landing Page**: LDAPIntegration page is the main/landing page (`mainPage: "LDAPIntegration"` in pages.config.js). Shows DataFlow branding (#0060AF blue Workflow icon), app description, feature icons (Sources, Pipelines, Airflow, GitLab), and LDAP login form.
+- **Landing Page**: LDAPIntegration page is the main/landing page (`mainPage: "LDAPIntegration"` in pages.config.js). Shows DataFlow branding (#0060AF blue Workflow icon), app description, and LDAP login form. Demo credentials banner only in dev mode.
 - **Vault Credentials (HashiCorp)**: Connections support `vault_credentials` auth method — AppRole authentication to HashiCorp Vault (KV v2). Vault config stored per connection: URL, namespace, role_id, secret_id, mount_point, secret_path. Credentials resolved server-side at test/connect time (`server/vault.js`). UI includes "Test Vault Connection" button to verify AppRole access. `POST /api/test-vault` endpoint for standalone vault testing.
 - **No Execution Operator section** — removed from schedule settings (auto-detect logic handled by deployment pipeline)
 - **No Data Lineage** — lineage pages, components, and spec generators fully removed
@@ -99,6 +99,26 @@ Pipeline, Connection, PipelineRun, ActivityLog, AuditLog, IngestionJob, AirflowD
 - `AUTH_USER_EMAIL` / `AUTH_USER_NAME` / `AUTH_USER_ROLE` - Mock user config
 - `RATE_LIMIT_MAX` - API read rate limit per 15 min window (default: 1000)
 - `RATE_LIMIT_WRITE_MAX` - API write rate limit per 15 min window (default: 200)
+
+## Key Design Decisions
+
+- **No connection_type**: Connections have no source/target type — any connection can serve as either
+- **Case-insensitive duplicate prevention**: Server uses `LOWER(data->>'name')` for pipeline and connection name uniqueness (both create and update)
+- **DAG Callable Base Path**: Defaults to `/data/dags/`, used by dag-factory YAML generation and spec export
+- **dag-factory format**: Airflow DAG YAML uses dag-factory compatible structure with PythonSensor, PythonOperator, and SparkSubmitOperator
+- **Schedule Settings**: 8-preset grid (None/Hourly/Daily/Weekly/Monthly/Quarterly/Cron/Sensor), Calendar Timetable (include/exclude calendars for business days, bank holidays, market holidays, year-end freeze, custom dates). DAG config, retries, and tags/ownership sections removed from UI — defaults used in DAG generation and spec export.
+- **Advanced Pipeline Features**: Enable Advanced Tab toggle with per-feature selection — Column Mapping (always on/default), Data Cleansing, Data Quality, Security & Masking, SLA Configuration. Selected features propagate to Advanced tab sidebar navigation. "Select All" shortcut available. Feature flags stored in `formData.advanced_features`.
+- **Pipeline Wizard UX**: Step indicator with chevron arrows, ring highlight on active step, 12px step labels always visible. Back/Next navigation with contextual labels ("Next: Advanced", "Next: Review"). Left-aligned Back button, right-aligned action cluster (Cancel, Save Draft, Next). Chevron icons on navigation buttons.
+- **Pipeline Cards**: Consolidated actions — only Run button visible, Deploy/Export/Details/Retry/Pause/Clone/Edit/Delete in dropdown menu. Card + list view toggle (same as Connections).
+- **Pipeline Status Chips**: Clickable filter chips (All/Active/Idle/Running/Completed/Failed/Paused) with counts replace dropdown filter.
+- **Connection Cards**: Platform-colored left border (4px) using `platformConfig.borderColor` for quick visual scanning.
+- **Connection Selector Tags**: Pipeline wizard connection dropdown shows environment tags (dev/prod/uat/staging) as colored pills.
+- **Sidebar**: Data Catalog and User Guide are navigable links in the sidebar.
+- **Login Page**: Decorative icons removed; credentials banner only shown in development mode.
+- **Dashboard**: "Data Pipelines" stat card (not "Ingestion Pipelines"). Recent Pipeline Runs table shows both Pipeline Status and Run Status columns so DAG run outcomes are linked to pipeline status. Stat card subtitle dynamically shows running/failed/configured count.
+- **Airflow DAG Status Sync**: `POST /api/airflow/sync-pipeline-status` polls all active Airflow connections, queries latest DAG run for each pipeline (dag_id = `dataflow__<sanitized_name>`), and updates pipeline status from Airflow state (success→completed, failed→failed, running/queued→running). Frontend hook `useAirflowStatusSync` polls every 2 minutes on Dashboard and Pipelines pages; silently no-ops if no Airflow connections exist.
+- **Empty States**: Dashboard shows "No pipeline runs yet" with CTA link to Pipelines; Pipelines page shows "Set up a connection first" when no connections exist.
+- **GitLab Deploy UI**: Streamlined card-based layout with US Bank blue Authenticate button (no orange), compact artifact previews, dark mode support. Orange reserved only for GitLab SVG icon.
 
 ## Running the App
 

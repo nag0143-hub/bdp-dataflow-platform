@@ -112,50 +112,34 @@ const PipelineCard = memo(function PipelineCard({
           {/* Actions */}
           <div className="flex items-center gap-2">
             <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setGitCheckinOpen(true)}
-              className="gap-1 text-slate-500"
-              title="View deployment artifacts"
-            >
-              <GitBranch className="w-4 h-4" />
-              Deploy
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onExport(job)}
-              className="gap-1 text-slate-500"
-              title="Export Pipeline Spec"
-            >
-              <FileJson className="w-4 h-4" />
-              Export
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onViewDetails(job)}
-              className="gap-1"
-            >
-              <Eye className="w-4 h-4" />
-              Details
-            </Button>
-            <Button
               size="sm"
               onClick={() => onRun(job)}
               disabled={job.status === "running" || job.status === "paused"}
-              className="gap-1 bg-emerald-600 hover:bg-emerald-700"
+              className="gap-1.5 bg-emerald-600 hover:bg-emerald-700"
             >
               <Play className="w-4 h-4" />
               Run
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
+                <Button variant="outline" size="icon" className="h-8 w-8">
                   <MoreVertical className="w-4 h-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => onViewDetails(job)}>
+                  <Eye className="w-4 h-4 mr-2" />
+                  Details
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setGitCheckinOpen(true)}>
+                  <GitBranch className="w-4 h-4 mr-2" />
+                  Deploy
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onExport(job)}>
+                  <FileJson className="w-4 h-4 mr-2" />
+                  Export
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => onRetry(job)} disabled={job.status !== "failed"}>
                   <RotateCcw className="w-4 h-4 mr-2" />
                   Retry Failed

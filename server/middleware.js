@@ -337,7 +337,7 @@ export function createApiMiddleware() {
 
       if ((table === 'pipeline' || table === 'connection') && data.name?.trim()) {
         const existing = await pool.query(
-          `SELECT id FROM "${table}" WHERE data->>'name' = $1 LIMIT 1`,
+          `SELECT id FROM "${table}" WHERE LOWER(data->>'name') = LOWER($1) LIMIT 1`,
           [data.name.trim()]
         );
         if (existing.rows.length > 0) {
@@ -377,7 +377,7 @@ export function createApiMiddleware() {
 
       if ((table === 'pipeline' || table === 'connection') && data.name?.trim()) {
         const existing = await pool.query(
-          `SELECT id FROM "${table}" WHERE data->>'name' = $1 AND id != $2 LIMIT 1`,
+          `SELECT id FROM "${table}" WHERE LOWER(data->>'name') = LOWER($1) AND id != $2 LIMIT 1`,
           [data.name.trim(), parseInt(req.params.id)]
         );
         if (existing.rows.length > 0) {

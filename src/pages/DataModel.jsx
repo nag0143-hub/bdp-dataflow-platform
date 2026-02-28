@@ -16,7 +16,6 @@ CREATE EXTENSION IF NOT EXISTS "pg_trgm";
 -- ENUM TYPES
 -- ------------------------------------------------------------
 
-CREATE TYPE connection_type_enum    AS ENUM ('source', 'target');
 CREATE TYPE platform_enum           AS ENUM ('sql_server','oracle','postgresql','mysql','mongodb','adls2','s3','flat_file_delimited','flat_file_fixed_width','cobol_ebcdic','sftp','nas','local_fs','azure_synapse','snowflake','databricks');
 CREATE TYPE auth_method_enum        AS ENUM ('password','key','connection_string','managed_identity','sftp_key','none','vault_credentials');
 CREATE TYPE connection_status_enum  AS ENUM ('active','inactive','error','pending_setup');
@@ -51,7 +50,6 @@ CREATE TABLE connection (
     source_system_name TEXT,
     description     TEXT,
     car_id          TEXT,
-    connection_type connection_type_enum NOT NULL,
     platform        platform_enum NOT NULL,
     host            TEXT,
     port            INTEGER,
@@ -71,7 +69,6 @@ CREATE TABLE connection (
 
 CREATE INDEX idx_connection_status    ON connection(status);
 CREATE INDEX idx_connection_platform  ON connection(platform);
-CREATE INDEX idx_connection_type      ON connection(connection_type);
 CREATE INDEX idx_connection_env       ON connection(environment);
 CREATE INDEX idx_connection_file_cfg  ON connection USING GIN(file_config);
 CREATE INDEX idx_connection_vault_cfg ON connection USING GIN(vault_config);
@@ -334,7 +331,6 @@ CREATE TABLE connection_profile (
 
     name             TEXT NOT NULL,
     description      TEXT,
-    connection_type  connection_type_enum,
     platform         platform_enum NOT NULL,
     host             TEXT,
     port             INTEGER,
@@ -507,7 +503,6 @@ const entities = [
       { name: "source_system_name", type: "string", required: false, note: "Name of the source system" },
       { name: "description", type: "string", required: false, note: "Connection description" },
       { name: "car_id", type: "string", required: false, note: "CarID identifier" },
-      { name: "connection_type", type: "string", required: true, note: '"source" | "target"' },
       { name: "platform", type: "string", required: true, note: 'sql_server, oracle, postgresql, mysql, mongodb, adls2, s3, sftp, nas, azure_synapse, snowflake, databricks, ...' },
       { name: "host", type: "string", required: false, note: "Hostname, IP, or URL" },
       { name: "port", type: "number", required: false, note: "TCP port" },
@@ -714,7 +709,6 @@ const entities = [
       { name: "created_by", type: "string", required: true, note: "User email (auto)" },
       { name: "name", type: "string", required: true, note: "Profile display name" },
       { name: "description", type: "string", required: false, note: "Profile description" },
-      { name: "connection_type", type: "string", required: false, note: '"source" | "target"' },
       { name: "platform", type: "string", required: true, note: 'sql_server, oracle, postgresql, mysql, ...' },
       { name: "host", type: "string", required: false, note: "Default hostname" },
       { name: "port", type: "number", required: false, note: "Default TCP port" },

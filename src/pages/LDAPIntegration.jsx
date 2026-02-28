@@ -44,26 +44,12 @@ export default function LDAPIntegration() {
             </p>
           </div>
 
-          <div className="grid grid-cols-4 gap-3">
-            {[
-              { icon: Database, label: "Sources" },
-              { icon: Workflow, label: "Pipelines" },
-              { icon: Wind, label: "Airflow" },
-              { icon: GitBranch, label: "GitLab" },
-            ].map(({ icon: Icon, label }) => (
-              <div key={label} className="flex flex-col items-center gap-1.5 py-2">
-                <div className="w-8 h-8 rounded-lg bg-[#0060AF]/10 dark:bg-[#0060AF]/20 flex items-center justify-center">
-                  <Icon className="w-4 h-4 text-[#0060AF] dark:text-blue-400" />
-                </div>
-                <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400">{label}</span>
-              </div>
-            ))}
-          </div>
-
-          <div className="rounded-lg border border-amber-200 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 px-4 py-3 flex items-start gap-2 text-sm text-amber-800 dark:text-amber-300">
-            <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
-            <span>Default credentials: <strong>admin / admin</strong></span>
-          </div>
+          {import.meta.env.DEV && (
+            <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-4 py-3 flex items-start gap-2 text-sm text-slate-600 dark:text-slate-400">
+              <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-slate-400" />
+              <span>Demo credentials: <strong className="text-slate-700 dark:text-slate-300">admin / admin</strong></span>
+            </div>
+          )}
 
           <Card className="border-slate-200 dark:border-slate-700 dark:bg-slate-800 shadow-sm">
             <CardContent className="p-6">

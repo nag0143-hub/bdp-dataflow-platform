@@ -1,7 +1,8 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { dataflow } from '@/api/client';
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
+import useAirflowStatusSync from "@/hooks/useAirflowStatusSync";
 import { 
   Cable, 
   Play, 
@@ -43,6 +44,10 @@ export default function Dashboard() {
     loadData();
   }, []);
 
+  useAirflowStatusSync(useCallback(() => {
+    loadData();
+  }, []));
+
   const loadData = async () => {
     setLoading(true);
     setError(null);
@@ -70,6 +75,7 @@ export default function Dashboard() {
     activeConnections: connections.filter(c => c.status === "active").length,
     totalJobs: jobs.length,
     runningJobs: jobs.filter(j => j.status === "running").length,
+    failedJobs: jobs.filter(j => j.status === "failed").length,
     completedRuns: runs.filter(r => r.status === "completed").length,
     failedRuns: runs.filter(r => r.status === "failed").length,
   };
@@ -132,9 +138,9 @@ export default function Dashboard() {
             variant="blue"
           />
           <StatCard 
-            title="Ingestion Pipelines" 
+            title="Data Pipelines" 
             value={stats.totalJobs}
-            subtitle={`${stats.runningJobs} running`}
+            subtitle={stats.runningJobs > 0 ? `${stats.runningJobs} running` : stats.failedJobs > 0 ? `${stats.failedJobs} failed` : `${stats.totalJobs} configured`}
             icon={Play}
             variant="amber"
           />
@@ -187,7 +193,8 @@ export default function Dashboard() {
                       <thead>
                         <tr className="border-b border-slate-100 dark:border-slate-700">
                           <th className="text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider py-3 px-4">Pipeline</th>
-                          <th className="text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider py-3 px-4">Status</th>
+                          <th className="text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider py-3 px-4">Pipeline Status</th>
+                          <th className="text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider py-3 px-4">Run Status</th>
                           <th className="text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider py-3 px-4">Rows</th>
                           <th className="text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider py-3 px-4">Duration</th>
                           <th className="text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider py-3 px-4">Started</th>
@@ -200,6 +207,9 @@ export default function Dashboard() {
                             <tr key={run.id} className="border-b border-slate-50 dark:border-slate-700/50 hover:bg-slate-50/50 dark:hover:bg-slate-700/30 transition-colors">
                               <td className="py-3 px-4">
                                 <span className="font-medium text-slate-900 dark:text-slate-100">{job?.name || "Unknown Pipeline"}</span>
+                              </td>
+                              <td className="py-3 px-4">
+                                {job && <StatusBadge status={job.status} size="sm" />}
                               </td>
                               <td className="py-3 px-4">
                                 <StatusBadge status={run.status} size="sm" />
@@ -221,8 +231,17 @@ export default function Dashboard() {
                   </div>
                 ) : (
                   <div className="text-center py-8">
-                    <Clock className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-                    <p className="text-slate-500 dark:text-slate-400">No pipeline runs match your search</p>
+                    <Clock className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
+                    <p className="text-slate-500 dark:text-slate-400 font-medium">
+                      {searchTerm ? "No pipeline runs match your search" : "No pipeline runs yet"}
+                    </p>
+                    {!searchTerm && (
+                      <p className="text-sm text-slate-400 dark:text-slate-500 mt-1">
+                        Run a pipeline from the{" "}
+                        <Link to={createPageUrl("Pipelines")} className="text-[#0060AF] hover:underline">Pipelines</Link>
+                        {" "}page to see results here.
+                      </p>
+                    )}
                   </div>
                 )}
                 <div className="border-t border-slate-100 dark:border-slate-700 pt-4">

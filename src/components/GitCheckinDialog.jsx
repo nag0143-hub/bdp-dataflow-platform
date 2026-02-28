@@ -3,11 +3,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Copy, Download, Check, Rocket, FileCode2, FileText, ChevronDown, ChevronUp, X, GitBranch, LayoutTemplate, Loader2, AlertCircle, ExternalLink, CheckCircle2, Lock, Eye, EyeOff, RefreshCw, Info } from "lucide-react";
+import { Copy, Download, Check, Rocket, FileCode2, FileText, ChevronDown, ChevronUp, X, GitBranch, LayoutTemplate, Loader2, AlertCircle, ExternalLink, CheckCircle2, Lock, Eye, EyeOff, Info } from "lucide-react";
 import { buildJobSpec, FLAT_FILE_PLATFORMS } from "@/components/JobSpecExport";
 import { BUILTIN_TEMPLATES, getAllTemplates, getTemplatesForSource, getDefaultTemplateId, fillTemplate } from "@/components/DagTemplates";
 import { dataflow } from "@/api/client";
 import { toYaml } from "@/utils/toYaml";
+import { cn } from "@/lib/utils";
 
 function ArtifactCard({ title, filename, icon: Icon, content }) {
   const [expanded, setExpanded] = useState(false);
@@ -32,30 +33,29 @@ function ArtifactCard({ title, filename, icon: Icon, content }) {
   };
 
   return (
-    <div className="border border-slate-200 rounded-lg overflow-hidden">
+    <div className="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
       <div
-        className="flex items-center gap-3 px-4 py-3 bg-slate-50 cursor-pointer hover:bg-slate-100 transition-colors"
+        className="flex items-center gap-3 px-3 py-2.5 bg-slate-50 dark:bg-slate-800/50 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
         onClick={() => setExpanded(v => !v)}
       >
-        <Icon className="w-4 h-4 text-slate-500 shrink-0" />
+        <Icon className="w-4 h-4 text-[#0060AF] shrink-0" />
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-slate-800">{title}</p>
-          <p className="text-xs text-slate-400 font-mono truncate">{filename}</p>
+          <p className="text-sm font-medium text-slate-800 dark:text-slate-200">{title}</p>
+          <p className="text-[10px] text-slate-400 font-mono truncate">{filename}</p>
         </div>
-        <div className="flex items-center gap-2 ml-auto">
-          <Button type="button" size="sm" variant="ghost" className="h-7 px-2 text-xs gap-1" onClick={handleCopy}>
+        <div className="flex items-center gap-1.5 ml-auto">
+          <Button type="button" size="sm" variant="ghost" className="h-6 px-1.5 text-[10px] gap-1" onClick={handleCopy}>
             {copied ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
-            {copied ? "Copied" : "Copy"}
           </Button>
-          <Button type="button" size="sm" variant="ghost" className="h-7 px-2 text-xs gap-1" onClick={handleDownload}>
+          <Button type="button" size="sm" variant="ghost" className="h-6 px-1.5 text-[10px]" onClick={handleDownload}>
             <Download className="w-3 h-3" />
           </Button>
-          {expanded ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+          {expanded ? <ChevronUp className="w-3.5 h-3.5 text-slate-400" /> : <ChevronDown className="w-3.5 h-3.5 text-slate-400" />}
         </div>
       </div>
       {expanded && (
         <div className="bg-slate-950 overflow-hidden">
-          <pre className="p-4 text-xs text-emerald-300 font-mono whitespace-pre overflow-auto max-h-64 leading-relaxed">
+          <pre className="p-3 text-xs text-emerald-300 font-mono whitespace-pre overflow-auto max-h-56 leading-relaxed">
             {content}
           </pre>
         </div>
@@ -72,19 +72,6 @@ function GitLabIcon({ className }) {
   );
 }
 
-function StatusBadge({ connected, label }) {
-  return (
-    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${
-      connected
-        ? "bg-emerald-100 text-emerald-700"
-        : "bg-red-100 text-red-700"
-    }`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${connected ? "bg-emerald-500" : "bg-red-500"}`} />
-      {label}
-    </span>
-  );
-}
-
 export default function GitCheckinDialog({ open, onOpenChange, pipelineData, connections }) {
   if (!pipelineData) return null;
 
@@ -94,14 +81,11 @@ export default function GitCheckinDialog({ open, onOpenChange, pipelineData, con
 
   const [customTemplates, setCustomTemplates] = useState([]);
   const [templateOverride, setTemplateOverride] = useState(null);
-
   const [commitBranch, setCommitBranch] = useState("main");
   const [commitMsg, setCommitMsg] = useState("");
-
   const [deploying, setDeploying] = useState(false);
   const [deployResult, setDeployResult] = useState(null);
   const [deployError, setDeployError] = useState(null);
-
   const [glConfig, setGlConfig] = useState(null);
   const [glUsername, setGlUsername] = useState("");
   const [glPassword, setGlPassword] = useState("");
@@ -134,11 +118,8 @@ export default function GitCheckinDialog({ open, onOpenChange, pipelineData, con
   const repoPath = `specs/${nameClean}/`;
 
   const spec = buildJobSpec({ id: pipelineData.id || "(unsaved)", ...pipelineData, dq_rules: pipelineData.dq_rules || {} }, connections);
-  const cleanSpec = JSON.parse(JSON.stringify(spec));
-  const specContent = `# DataFlow Pipeline Spec — ${pipelineData.name || "untitled"}\n` + toYaml(cleanSpec);
-
+  const specContent = `# DataFlow Pipeline Spec — ${pipelineData.name || "untitled"}\n` + toYaml(JSON.parse(JSON.stringify(spec)));
   const airflowDagYaml = fillTemplate(selectedTemplateId, pipelineData, connections, customTemplates);
-
   const selectedTmpl = allTemplates.find(t => t.id === selectedTemplateId);
 
   const builtinForSource = BUILTIN_TEMPLATES.filter(t => t.sourceType === (isFlatFile ? "flat_file" : "database"));
@@ -165,8 +146,7 @@ export default function GitCheckinDialog({ open, onOpenChange, pipelineData, con
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username: glUsername, password: glPassword }),
       });
-      const data = await res.json();
-      setGlStatus(data);
+      setGlStatus(await res.json());
     } catch (err) {
       setGlStatus({ connected: false, error: err.message });
     } finally {
@@ -191,9 +171,7 @@ export default function GitCheckinDialog({ open, onOpenChange, pipelineData, con
         }),
       });
       const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || "Commit failed");
-      }
+      if (!res.ok || !data.success) throw new Error(data.error || "Commit failed");
       setDeployResult({ ...data, provider: "gitlab" });
     } catch (err) {
       setDeployError(err.message);
@@ -204,307 +182,222 @@ export default function GitCheckinDialog({ open, onOpenChange, pipelineData, con
 
   const canDeploy = glStatus?.connected && glUsername && glPassword;
 
-  const handleClose = () => {
-    if (!deploying) onOpenChange(false);
-  };
-
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!deploying && !v) onOpenChange(false); }}>
       <DialogContent
         preventClose={deploying}
-        className="w-[95vw] max-w-4xl max-h-[92vh] overflow-y-auto"
+        className="w-[95vw] max-w-3xl max-h-[90vh] overflow-y-auto"
         onPointerDownOutside={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => { if (deploying) e.preventDefault(); }}
       >
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Rocket className="w-5 h-5 text-[#0060AF]" />
-            Deploy Pipeline — {pipelineData.name}
+          <DialogTitle className="flex items-center gap-2 text-base">
+            <Rocket className="w-4 h-4 text-[#0060AF]" />
+            Deploy — {pipelineData.name}
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-5">
+        <div className="space-y-4">
 
-          {/* Section 1: Provider */}
-          <div>
-            <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2 block">Git Provider</Label>
-            <div className="flex gap-2">
-              <div className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold border bg-orange-600 text-white border-orange-600">
-                <GitLabIcon className="w-4 h-4" />
-                GitLab
-              </div>
-            </div>
-          </div>
-
-          {/* Section 2: GitLab Repository + Auth */}
-          <div className="rounded-lg border border-orange-200 bg-orange-50/50 px-4 py-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <Label className="text-xs font-semibold text-orange-700 uppercase tracking-wide">GitLab Repository & Authentication</Label>
+          <div className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden">
+            <div className="flex items-center gap-2.5 px-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
+              <GitLabIcon className="w-4 h-4 text-orange-600" />
+              <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">GitLab (LDAP)</span>
               {glStatus && (
-                <StatusBadge connected={glStatus.connected} label={glStatus.connected ? `Authenticated as ${glStatus.login}` : "Not authenticated"} />
+                <span className={cn(
+                  "ml-auto inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium",
+                  glStatus.connected
+                    ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400"
+                    : "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400"
+                )}>
+                  <span className={cn("w-1.5 h-1.5 rounded-full", glStatus.connected ? "bg-emerald-500" : "bg-red-500")} />
+                  {glStatus.connected ? glStatus.login : "Not connected"}
+                </span>
               )}
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-medium text-orange-700 block mb-1">GitLab URL</label>
-                <Input
-                  value={glConfig?.url || ""}
-                  readOnly
-                  className="font-mono text-sm bg-orange-50 text-orange-800"
-                  placeholder="Set GITLAB_URL env var"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-orange-700 block mb-1">Project Path</label>
-                <Input
-                  value={glConfig?.project || ""}
-                  readOnly
-                  className="font-mono text-sm bg-orange-50 text-orange-800"
-                  placeholder="Set GITLAB_PROJECT env var"
-                />
-              </div>
-            </div>
-            {!glConfig?.configured && (
-              <p className="text-xs text-amber-600 flex items-center gap-1">
-                <Info className="w-3 h-3" /> Set GITLAB_URL and GITLAB_PROJECT environment variables to configure.
-              </p>
-            )}
-            <div className="border-t border-orange-200 pt-3 space-y-2">
-              <div className="flex items-center gap-2">
-                <Lock className="w-3.5 h-3.5 text-orange-700" />
-                <p className="text-xs font-semibold text-orange-800">LDAP Credentials</p>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
+
+            <div className="p-4 space-y-3">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-medium text-orange-700 block mb-1">Username</label>
+                  <Label className="text-xs text-slate-500 dark:text-slate-400">GitLab URL</Label>
+                  <Input value={glConfig?.url || ""} readOnly className="h-8 font-mono text-xs bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 mt-1" placeholder="GITLAB_URL not set" />
+                </div>
+                <div>
+                  <Label className="text-xs text-slate-500 dark:text-slate-400">Project</Label>
+                  <Input value={glConfig?.project || ""} readOnly className="h-8 font-mono text-xs bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 mt-1" placeholder="GITLAB_PROJECT not set" />
+                </div>
+              </div>
+
+              {!glConfig?.configured && (
+                <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1.5 bg-amber-50 dark:bg-amber-900/20 rounded-lg px-3 py-2">
+                  <Info className="w-3.5 h-3.5 shrink-0" />
+                  Set <code className="font-mono font-semibold">GITLAB_URL</code> and <code className="font-mono font-semibold">GITLAB_PROJECT</code> to configure.
+                </p>
+              )}
+
+              <div className="border-t border-slate-100 dark:border-slate-700 pt-3">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <Lock className="w-3 h-3 text-slate-400" />
+                  <Label className="text-xs font-semibold text-slate-600 dark:text-slate-400">LDAP Credentials</Label>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
                   <Input
                     type="text"
                     value={glUsername}
                     onChange={e => { setGlUsername(e.target.value); setGlStatus(null); }}
-                    className="font-mono text-sm"
-                    placeholder="LDAP username"
+                    className="h-8 text-xs"
+                    placeholder="Username"
                     autoComplete="username"
                   />
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-orange-700 block mb-1">Password</label>
                   <div className="relative">
                     <Input
                       type={showPassword ? "text" : "password"}
                       value={glPassword}
                       onChange={e => { setGlPassword(e.target.value); setGlStatus(null); }}
-                      className="font-mono text-sm pr-9"
-                      placeholder="LDAP password"
+                      className="h-8 text-xs pr-8"
+                      placeholder="Password"
                       autoComplete="current-password"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(v => !v)}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-orange-400 hover:text-orange-600"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                       tabIndex={-1}
                     >
-                      {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      {showPassword ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
                     </button>
                   </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  size="sm"
-                  disabled={!glUsername || !glPassword || glAuthenticating || !glConfig?.configured}
-                  onClick={handleGitLabAuth}
-                  className="h-7 px-3 text-xs bg-orange-600 hover:bg-orange-700 text-white"
-                >
-                  {glAuthenticating ? (
-                    <><Loader2 className="w-3 h-3 animate-spin mr-1" /> Authenticating...</>
-                  ) : (
-                    "Authenticate"
+                <div className="flex items-center gap-2 mt-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={!glUsername || !glPassword || glAuthenticating || !glConfig?.configured}
+                    onClick={handleGitLabAuth}
+                    className="h-7 px-3 text-xs bg-[#0060AF] hover:bg-[#004d8c] text-white"
+                  >
+                    {glAuthenticating ? <><Loader2 className="w-3 h-3 animate-spin mr-1" /> Verifying...</> : "Authenticate"}
+                  </Button>
+                  {glStatus && !glStatus.connected && (
+                    <span className="text-xs text-red-500">{glStatus.error || "Authentication failed"}</span>
                   )}
-                </Button>
-                {glStatus && !glStatus.connected && (
-                  <span className="text-xs font-medium text-red-500">{glStatus.error || "Authentication failed"}</span>
-                )}
+                </div>
+                <p className="text-[10px] text-slate-400 mt-1.5">Credentials are used for this commit only and are never stored.</p>
               </div>
-              <p className="text-xs text-orange-500">Credentials are used only for this commit and are never stored.</p>
+
+              <div className="border-t border-slate-100 dark:border-slate-700 pt-3">
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <Label className="text-xs text-slate-500 dark:text-slate-400">Branch</Label>
+                    <Input value={commitBranch} onChange={e => setCommitBranch(e.target.value)} className="h-8 font-mono text-xs mt-1" placeholder="main" />
+                  </div>
+                  <div className="col-span-2">
+                    <Label className="text-xs text-slate-500 dark:text-slate-400">Commit Message</Label>
+                    <Input value={commitMsg} onChange={e => setCommitMsg(e.target.value)} className="h-8 text-xs mt-1" placeholder={defaultCommitMsg} />
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 mt-2 text-[10px] text-slate-400">
+                  <GitBranch className="w-3 h-3 shrink-0" />
+                  <span>Target path:</span>
+                  <code className="font-mono text-[#0060AF] font-semibold">{repoPath}</code>
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Section 3: Branch, Commit Message, Path */}
-          <div className="rounded-lg border border-slate-200 p-4 space-y-3">
-            <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Git Commit Settings</Label>
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <label className="text-xs font-medium text-slate-600 block mb-1">Branch</label>
-                <Input
-                  value={commitBranch}
-                  onChange={e => setCommitBranch(e.target.value)}
-                  className="font-mono text-sm"
-                  placeholder="main"
-                />
-              </div>
-              <div className="col-span-2">
-                <label className="text-xs font-medium text-slate-600 block mb-1">Commit Message</label>
-                <Input
-                  value={commitMsg}
-                  onChange={e => setCommitMsg(e.target.value)}
-                  className="text-sm"
-                  placeholder={defaultCommitMsg}
-                />
-              </div>
-            </div>
-            <div className="flex items-center gap-2 bg-slate-50 rounded-lg px-3 py-2 border border-slate-100">
-              <GitBranch className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-              <span className="text-xs text-slate-500">Files will be committed to:</span>
-              <code className="text-xs font-mono text-[#0060AF] font-semibold">{repoPath}</code>
-            </div>
-          </div>
-
-          {/* Section 4: DAG Template selector */}
-          <div className="rounded-lg border border-[#0060AF]/20 bg-[#0060AF]/5 p-3 space-y-2">
+          <div className="border border-[#0060AF]/15 rounded-xl p-3 space-y-2 bg-[#0060AF]/[0.02]">
             <div className="flex items-center gap-2">
-              <LayoutTemplate className="w-4 h-4 text-[#0060AF]" />
-              <span className="text-sm font-semibold text-slate-800">DAG Template</span>
+              <LayoutTemplate className="w-3.5 h-3.5 text-[#0060AF]" />
+              <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">DAG Template</span>
             </div>
             <select
               value={selectedTemplateId}
               onChange={e => setTemplateOverride(e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:ring-2 focus:ring-[#0060AF]/30 focus:border-[#0060AF] outline-none font-medium"
+              className="w-full px-3 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 focus:ring-2 focus:ring-[#0060AF]/30 focus:border-[#0060AF] outline-none font-medium"
             >
               {builtinForSource.length > 0 && (
                 <optgroup label={isFlatFile ? "Flat File Templates" : "Database Templates"}>
-                  {builtinForSource.map(t => (
-                    <option key={t.id} value={t.id}>{t.name}</option>
-                  ))}
+                  {builtinForSource.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                 </optgroup>
               )}
               {customForSource.length > 0 && (
                 <optgroup label="Custom Templates">
-                  {customForSource.map(t => (
-                    <option key={t.id} value={t.id}>{t.name}</option>
-                  ))}
+                  {customForSource.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                 </optgroup>
               )}
               {(builtinOther.length > 0 || customOther.length > 0) && (
                 <optgroup label="Other Templates">
-                  {builtinOther.map(t => (
-                    <option key={t.id} value={t.id}>{t.name}</option>
-                  ))}
-                  {customOther.map(t => (
-                    <option key={t.id} value={t.id}>{t.name} (custom)</option>
-                  ))}
+                  {builtinOther.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                  {customOther.map(t => <option key={t.id} value={t.id}>{t.name} (custom)</option>)}
                 </optgroup>
               )}
             </select>
-            {selectedTmpl && (
-              <p className="text-xs text-slate-500">{selectedTmpl.description}</p>
-            )}
+            {selectedTmpl && <p className="text-[10px] text-slate-400">{selectedTmpl.description}</p>}
           </div>
 
-          {/* Section 5: Artifact previews */}
-          <div>
-            <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2 block">Deployment Artifacts (auto-generated)</Label>
-            <div className="space-y-2">
-              <ArtifactCard
-                title={`Airflow DAG (YAML) — ${selectedTmpl?.name || "Template"}`}
-                filename={dagFilename}
-                icon={FileCode2}
-                content={airflowDagYaml}
-              />
-              <ArtifactCard
-                title="Pipeline Spec (YAML)"
-                filename={specFilename}
-                icon={FileText}
-                content={specContent}
-              />
-            </div>
-            <p className="text-xs text-slate-400 mt-1.5 flex items-center gap-1">
-              <Info className="w-3 h-3" />
-              Filenames auto-generated from pipeline name: <code className="font-mono text-slate-500">{nameClean}</code>
-            </p>
+          <div className="space-y-2">
+            <Label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Artifacts</Label>
+            <ArtifactCard
+              title={`Airflow DAG — ${selectedTmpl?.name || "Template"}`}
+              filename={dagFilename}
+              icon={FileCode2}
+              content={airflowDagYaml}
+            />
+            <ArtifactCard
+              title="Pipeline Specification"
+              filename={specFilename}
+              icon={FileText}
+              content={specContent}
+            />
           </div>
 
-          {/* Section 6: Deploy result */}
           {deployResult && (
-            <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 space-y-2">
+            <div className="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 p-4 space-y-2">
               <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
-                <p className="text-sm font-semibold text-emerald-800">Committed successfully to GitLab</p>
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">Committed to GitLab</p>
               </div>
-              <div className="space-y-1 text-xs text-emerald-700">
-                <p><span className="font-medium">Branch:</span> <code className="bg-emerald-100 px-1 rounded">{deployResult.branch}</code></p>
-                <p><span className="font-medium">SHA:</span> <code className="bg-emerald-100 px-1 rounded font-mono">{(deployResult.short_sha || deployResult.sha || "").substring(0, 10)}</code></p>
-                {deployResult.author && (
-                  <p><span className="font-medium">Author:</span> {deployResult.author}</p>
-                )}
-                <p><span className="font-medium">Files:</span></p>
-                <ul className="ml-4 space-y-0.5">
-                  {deployResult.files?.map(f => (
-                    <li key={f} className="font-mono text-emerald-600">{f}</li>
-                  ))}
-                </ul>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-emerald-700 dark:text-emerald-400">
+                <p><span className="font-medium">Branch:</span> <code className="bg-emerald-100 dark:bg-emerald-800/50 px-1 rounded">{deployResult.branch}</code></p>
+                <p><span className="font-medium">SHA:</span> <code className="bg-emerald-100 dark:bg-emerald-800/50 px-1 rounded font-mono">{(deployResult.short_sha || deployResult.sha || "").substring(0, 10)}</code></p>
+                {deployResult.author && <p className="col-span-2"><span className="font-medium">Author:</span> {deployResult.author}</p>}
               </div>
               {deployResult.url && (
-                <a
-                  href={deployResult.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 text-xs font-medium text-[#0060AF] hover:underline mt-1"
-                >
-                  <ExternalLink className="w-3.5 h-3.5" />
-                  View commit on GitLab
+                <a href={deployResult.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs font-medium text-[#0060AF] hover:underline">
+                  <ExternalLink className="w-3 h-3" /> View on GitLab
                 </a>
               )}
-              <div className="flex items-center gap-2 mt-2 pt-2 border-t border-emerald-200">
-                <Rocket className="w-4 h-4 text-blue-700 shrink-0" />
-                <p className="text-xs text-blue-700">
-                  CI/CD pipeline will auto-trigger to validate and deploy the DAG to your Airflow environment.
-                </p>
+              <div className="flex items-center gap-2 pt-2 border-t border-emerald-200 dark:border-emerald-800">
+                <Rocket className="w-3.5 h-3.5 text-[#0060AF] shrink-0" />
+                <p className="text-[10px] text-[#0060AF]">CI/CD will auto-trigger to deploy the DAG to Airflow.</p>
               </div>
             </div>
           )}
 
           {deployError && (
-            <div className="rounded-lg border border-red-200 bg-red-50 p-4">
-              <div className="flex items-center gap-2">
-                <AlertCircle className="w-5 h-5 text-red-600 shrink-0" />
-                <div>
-                  <p className="text-sm font-semibold text-red-800">Commit failed</p>
-                  <p className="text-xs text-red-600 mt-0.5">{deployError}</p>
-                </div>
+            <div className="rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 p-4 flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-red-800 dark:text-red-300">Commit failed</p>
+                <p className="text-xs text-red-600 dark:text-red-400 mt-0.5">{deployError}</p>
               </div>
             </div>
           )}
 
-          {/* Section 7: Action buttons */}
-          <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleClose(); }}
-              disabled={deploying}
-            >
-              <X className="w-4 h-4 mr-1" /> Close
+          <div className="flex justify-end gap-2 pt-1 border-t border-slate-100 dark:border-slate-800">
+            <Button type="button" variant="outline" size="sm" onClick={() => { if (!deploying) onOpenChange(false); }} disabled={deploying}>
+              Close
             </Button>
             {!deployResult && (
               <Button
                 type="button"
+                size="sm"
                 disabled={deploying || !canDeploy}
                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDeploy(); }}
                 className="gap-1.5 bg-[#0060AF] hover:bg-[#004d8c] text-white"
               >
-                {deploying ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Committing...
-                  </>
-                ) : (
-                  <>
-                    <Rocket className="w-4 h-4" />
-                    Validate & Deploy
-                  </>
-                )}
+                {deploying ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Committing...</> : <><Rocket className="w-3.5 h-3.5" /> Deploy to GitLab</>}
               </Button>
             )}
           </div>

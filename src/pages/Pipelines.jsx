@@ -1,20 +1,22 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { dataflow } from '@/api/client';
-import { Plus, Search, Play, Filter, Rocket, RefreshCw, Tag, Layers, X } from "lucide-react";
+import { Plus, Search, Play, Rocket, RefreshCw, Tag, Layers, X, LayoutGrid, List } from "lucide-react";
+import useAirflowStatusSync from "@/hooks/useAirflowStatusSync";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import EmptyStateGuide from "@/components/EmptyStateGuide";
 import SkeletonLoader from "@/components/SkeletonLoader";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import ErrorState from "@/components/ErrorState";
 import { createIndex } from "@/components/dataIndexing";
+import { createPageUrl } from "@/utils";
 import { useTenant } from "@/components/useTenant";
 import { useRetry } from "@/components/hooks/useRetry";
 import { usePagination } from "@/components/hooks/usePagination";
 import JobFormDialog from "@/components/JobFormDialog";
 import PipelineCard from "@/components/PipelineCard";
+import PipelineListRow from "@/components/PipelineListRow";
 import JobDetailsDialog from "@/components/JobDetailsDialog";
 import JobSpecExport from "@/components/JobSpecExport";
 import OnboardingWizard from "@/components/OnboardingWizard";
@@ -79,10 +81,15 @@ export default function Pipelines() {
   const [exportPipeline, setExportPipeline] = useState(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [groupByTag, setGroupByTag] = useState(false);
+  const [viewMode, setViewMode] = useState("card");
 
   useEffect(() => {
     loadData();
   }, []);
+
+  useAirflowStatusSync(useCallback(() => {
+    loadData();
+  }, []));
 
   useEffect(() => {
     if (!loading && !error && pipelines.length === 0 && connections.length > 0) {
@@ -140,6 +147,22 @@ export default function Pipelines() {
     }
     return pipelines.filter(p => filterStatus === "all" || p.status === filterStatus);
   }, [searchTerm, searchResults, pipelines, filterStatus]);
+
+  const statusCounts = useMemo(() => {
+    const counts = { all: pipelines.length, active: 0, idle: 0, running: 0, completed: 0, failed: 0, paused: 0 };
+    pipelines.forEach(p => { if (counts[p.status] !== undefined) counts[p.status]++; });
+    return counts;
+  }, [pipelines]);
+
+  const statusChips = [
+    { value: "all", label: "All" },
+    { value: "active", label: "Active" },
+    { value: "idle", label: "Idle" },
+    { value: "running", label: "Running" },
+    { value: "completed", label: "Completed" },
+    { value: "failed", label: "Failed" },
+    { value: "paused", label: "Paused" },
+  ];
 
   const groupedByTag = groupByTag ? displayPipelines.reduce((acc, p) => {
     const tags = p.tags?.length ? p.tags : ["Untagged"];
@@ -453,38 +476,59 @@ export default function Pipelines() {
         {/* Filters + List */}
         <>
 
-            <div className="flex flex-col sm:flex-row gap-3">
-              <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <Input
-                  placeholder="Search by name, status, or tag..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col sm:flex-row gap-3">
+                <div className="relative flex-1 max-w-md">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <Input
+                    placeholder="Search by name, status, or tag..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                <Button
+                  variant={groupByTag ? "default" : "outline"}
+                  className="gap-2 shrink-0"
+                  onClick={() => setGroupByTag(g => !g)}
+                >
+                  <Layers className="w-4 h-4" />
+                  Group by Tag
+                </Button>
+                <div className="flex border rounded-md overflow-hidden shrink-0">
+                  <button
+                    className={`px-2.5 py-1.5 ${viewMode === "card" ? "bg-[#0060AF] text-white" : "bg-white dark:bg-slate-800 text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700"}`}
+                    onClick={() => setViewMode("card")} title="Card view"
+                  ><LayoutGrid className="w-4 h-4" /></button>
+                  <button
+                    className={`px-2.5 py-1.5 ${viewMode === "list" ? "bg-[#0060AF] text-white" : "bg-white dark:bg-slate-800 text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700"}`}
+                    onClick={() => setViewMode("list")} title="List view"
+                  ><List className="w-4 h-4" /></button>
+                </div>
               </div>
-              <Select value={filterStatus} onValueChange={setFilterStatus}>
-                <SelectTrigger className="w-40">
-                  <Filter className="w-4 h-4 mr-2 text-slate-400" />
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="idle">Idle</SelectItem>
-                  <SelectItem value="running">Running</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
-                  <SelectItem value="failed">Failed</SelectItem>
-                  <SelectItem value="paused">Paused</SelectItem>
-                </SelectContent>
-              </Select>
-              <Button
-                variant={groupByTag ? "default" : "outline"}
-                className="gap-2 shrink-0"
-                onClick={() => setGroupByTag(g => !g)}
-              >
-                <Layers className="w-4 h-4" />
-                Group by Tag
-              </Button>
+
+              <div className="flex flex-wrap gap-2">
+                {statusChips.map(chip => (
+                  <button
+                    key={chip.value}
+                    onClick={() => setFilterStatus(chip.value)}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                      filterStatus === chip.value
+                        ? "bg-[#0060AF] text-white shadow-sm"
+                        : "bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600"
+                    }`}
+                  >
+                    {chip.label}
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+                      filterStatus === chip.value
+                        ? "bg-white/20"
+                        : "bg-slate-200 dark:bg-slate-600 text-slate-500 dark:text-slate-400"
+                    }`}>
+                      {statusCounts[chip.value]}
+                    </span>
+                  </button>
+                ))}
+              </div>
             </div>
 
             {displayPipelines.length > 0 ? (
@@ -499,31 +543,85 @@ export default function Pipelines() {
                           <h2 className="text-sm font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider">{tag}</h2>
                           <span className="text-xs text-slate-400 bg-slate-100 dark:bg-slate-700 rounded-full px-2 py-0.5">{pipelinesInTag.length}</span>
                         </div>
-                        <div className="space-y-4">
-                          {pipelinesInTag.map((pipeline) => (
-                            <ErrorBoundary key={pipeline.id}>
-                              <PipelineCard
-                                job={pipeline}
-                                sourceConn={getConnection(pipeline.source_connection_id)}
-                                targetConn={getConnection(pipeline.target_connection_id)}
-                                jobRuns={getPipelineRuns(pipeline.id)}
-                                connections={connections}
-                                onEdit={handleEdit}
-                                onDelete={handleDelete}
-                                onRun={handleRunPipeline}
-                                onRetry={handleRetryPipeline}
-                                onPause={handlePausePipeline}
-                                onClone={handleClonePipeline}
-                                onViewDetails={(p) => { setViewingPipeline(p); setDetailsDialogOpen(true); }}
-                                onExport={setExportPipeline}
-                              />
-                            </ErrorBoundary>
-                          ))}
-                        </div>
+                        {viewMode === "list" ? (
+                          <div className="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden bg-white dark:bg-slate-800">
+                            {pipelinesInTag.map((pipeline) => (
+                              <ErrorBoundary key={pipeline.id}>
+                                <PipelineListRow
+                                  job={pipeline}
+                                  sourceConn={getConnection(pipeline.source_connection_id)}
+                                  targetConn={getConnection(pipeline.target_connection_id)}
+                                  jobRuns={getPipelineRuns(pipeline.id)}
+                                  connections={connections}
+                                  onEdit={handleEdit}
+                                  onDelete={handleDelete}
+                                  onRun={handleRunPipeline}
+                                  onRetry={handleRetryPipeline}
+                                  onPause={handlePausePipeline}
+                                  onClone={handleClonePipeline}
+                                  onViewDetails={(p) => { setViewingPipeline(p); setDetailsDialogOpen(true); }}
+                                  onExport={setExportPipeline}
+                                />
+                              </ErrorBoundary>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="space-y-4">
+                            {pipelinesInTag.map((pipeline) => (
+                              <ErrorBoundary key={pipeline.id}>
+                                <PipelineCard
+                                  job={pipeline}
+                                  sourceConn={getConnection(pipeline.source_connection_id)}
+                                  targetConn={getConnection(pipeline.target_connection_id)}
+                                  jobRuns={getPipelineRuns(pipeline.id)}
+                                  connections={connections}
+                                  onEdit={handleEdit}
+                                  onDelete={handleDelete}
+                                  onRun={handleRunPipeline}
+                                  onRetry={handleRetryPipeline}
+                                  onPause={handlePausePipeline}
+                                  onClone={handleClonePipeline}
+                                  onViewDetails={(p) => { setViewingPipeline(p); setDetailsDialogOpen(true); }}
+                                  onExport={setExportPipeline}
+                                />
+                              </ErrorBoundary>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     ))}
                 </div>
-              ) :
+              ) : viewMode === "list" ? (
+                <div className="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden bg-white dark:bg-slate-800">
+                  <div className="flex items-center gap-4 px-4 py-2 bg-slate-50 dark:bg-slate-700/50 border-b border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    <div className="w-52 shrink-0">Name</div>
+                    <div className="w-24 shrink-0">Status</div>
+                    <div className="flex-1 hidden md:block">Connection Flow</div>
+                    <div className="w-16 text-center hidden lg:block">Datasets</div>
+                    <div className="w-24 text-right hidden xl:block">Last Run</div>
+                    <div className="shrink-0 w-24" />
+                  </div>
+                  {displayPipelines.map((pipeline) => (
+                    <ErrorBoundary key={pipeline.id}>
+                      <PipelineListRow
+                        job={pipeline}
+                        sourceConn={getConnection(pipeline.source_connection_id)}
+                        targetConn={getConnection(pipeline.target_connection_id)}
+                        jobRuns={getPipelineRuns(pipeline.id)}
+                        connections={connections}
+                        onEdit={handleEdit}
+                        onDelete={handleDelete}
+                        onRun={handleRunPipeline}
+                        onRetry={handleRetryPipeline}
+                        onPause={handlePausePipeline}
+                        onClone={handleClonePipeline}
+                        onViewDetails={(p) => { setViewingPipeline(p); setDetailsDialogOpen(true); }}
+                        onExport={setExportPipeline}
+                      />
+                    </ErrorBoundary>
+                  ))}
+                </div>
+              ) : (
               <div className="space-y-4">
                 {displayPipelines.map((pipeline) => (
                    <ErrorBoundary key={pipeline.id}>
@@ -566,20 +664,26 @@ export default function Pipelines() {
                   </div>
                 )}
               </div>
-            ) : (
+            )) : (
               <EmptyStateGuide
                 icon={Play}
-                title={searchTerm ? "No pipelines found" : "No data pipelines yet"}
+                title={searchTerm ? "No pipelines found" : connections.length === 0 ? "Set up a connection first" : "No data pipelines yet"}
                 description={
                   searchTerm
                     ? "Try adjusting your search or filters"
+                    : connections.length === 0
+                    ? "You need at least one source and one target connection before creating a pipeline"
                     : "Create your first data pipeline to start moving data between connections"
                 }
-                primaryAction={!searchTerm ? {
+                primaryAction={!searchTerm ? (connections.length === 0 ? {
+                  label: "Go to Connections",
+                  icon: <Plus className="w-4 h-4" />,
+                  onClick: () => { window.location.href = createPageUrl("Connections"); }
+                } : {
                   label: "New Pipeline",
                   icon: <Plus className="w-4 h-4" />,
                   onClick: openNew
-                } : null}
+                }) : null}
               />
             )}
         </>

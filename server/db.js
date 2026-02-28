@@ -100,7 +100,7 @@ async function initializeDatabase() {
     await client.query(`CREATE INDEX IF NOT EXISTS "idx_pipeline_version_pipeline_id" ON "pipeline_version" ((data->>'pipeline_id'))`);
 
     await client.query(`CREATE INDEX IF NOT EXISTS "idx_connection_platform" ON "connection" ((data->>'platform'))`);
-    await client.query(`CREATE INDEX IF NOT EXISTS "idx_connection_connection_type" ON "connection" ((data->>'connection_type'))`);
+    await client.query(`CREATE INDEX IF NOT EXISTS "idx_connection_name" ON "connection" ((data->>'name'))`);
 
     await client.query(`
       CREATE INDEX IF NOT EXISTS "idx_activity_log_search" ON "activity_log" USING GIN (to_tsvector('english', coalesce(data->>'message','') || ' ' || coalesce(data->>'category','')))

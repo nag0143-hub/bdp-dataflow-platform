@@ -51,9 +51,18 @@ export function buildJobSpec(job, connections) {
   const scheduleSection = {
     type: job.schedule_type || "manual",
     cron_expression: job.cron_expression || "",
+    start_date: job.start_date || "2024-01-01",
+    end_date: job.end_date || null,
+    catchup: !!job.catchup,
+    is_paused_upon_creation: job.is_paused_upon_creation !== false,
+    max_active_runs: job.max_active_runs ?? 1,
+    concurrency: job.concurrency ?? 16,
+    dagrun_timeout_minutes: job.dagrun_timeout ?? 0,
     use_custom_calendar: job.use_custom_calendar || false,
     include_calendar_id: job.include_calendar_id || "",
     exclude_calendar_id: job.exclude_calendar_id || "",
+    custom_include_dates: job.custom_include_dates || "",
+    custom_exclude_dates: job.custom_exclude_dates || "",
   };
 
   if (job.schedule_type === "event_driven") {
@@ -65,6 +74,8 @@ export function buildJobSpec(job, connections) {
         upstream_job: job.event_config?.upstream_job || "",
         poll_interval: job.event_config?.poll_interval || "60",
         timeout_hours: job.event_config?.timeout_hours || "24",
+        sensor_mode: job.event_config?.sensor_mode || "reschedule",
+        soft_fail: !!job.event_config?.soft_fail,
       },
     };
   }
@@ -121,7 +132,21 @@ export function buildJobSpec(job, connections) {
       retry: {
         max_retries: job.retry_config?.max_retries ?? 3,
         retry_delay_seconds: job.retry_config?.retry_delay_seconds ?? 60,
-        exponential_backoff: job.retry_config?.exponential_backoff ?? true,
+        exponential_backoff: !!job.retry_config?.retry_exponential_backoff,
+      },
+      failure_handling: {
+        email: job.email || "",
+        email_on_retry: !!job.email_on_retry,
+        sla_seconds: job.sla_seconds || null,
+        execution_timeout: job.execution_timeout || null,
+        depends_on_past: !!job.depends_on_past,
+        wait_for_downstream: !!job.wait_for_downstream,
+      },
+      ownership: {
+        owner: job.assignment_group || "data-eng",
+        priority_weight: job.priority_weight ?? 1,
+        pool: job.pool || "",
+        tags: ["dataflow", ...(job.dag_tags || [])],
       },
       execution: {
         operator: operatorType,
@@ -145,6 +170,7 @@ export function buildJobSpec(job, connections) {
           },
         } : {}),
       },
+      advanced_features: job.advanced_features || { column_mapping: true },
       column_mappings: job.column_mappings || {},
       data_quality_rules: job.dq_rules || {},
       dag_callable_base_path: job.dag_callable_base_path || "/data/dags/",

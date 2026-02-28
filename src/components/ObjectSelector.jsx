@@ -92,7 +92,6 @@ export default function ObjectSelector({ selectedObjects = [], onChange, connect
   const [configPanelObject, setConfigPanelObject] = useState(null);
   const [objectConfig, setObjectConfig] = useState({});
   const [showImporter, setShowImporter] = useState(false);
-  const [importerDismissed, setImporterDismissed] = useState(false);
   const [liveLoading, setLiveLoading] = useState(false);
   const [liveError, setLiveError] = useState(null);
   const [liveConnected, setLiveConnected] = useState(false);
@@ -298,17 +297,17 @@ export default function ObjectSelector({ selectedObjects = [], onChange, connect
             variant="outline"
             size="sm"
             className="gap-1.5 shrink-0 text-xs"
-            onClick={() => { setShowImporter(v => !v); setImporterDismissed(false); }}
+            onClick={() => setShowImporter(v => !v)}
           >
             <Upload className="w-3.5 h-3.5" />
             Import Schema
           </Button>
         </div>
-        {(showImporter || (!liveConnected && !liveLoading && (liveError || !connectionId) && !importerDismissed)) && (
+        {showImporter && (
           <div className="bg-white border border-slate-200 rounded-lg p-3">
             <SchemaImporter
               onImport={handleImportedSchemas}
-              onClose={() => { setShowImporter(false); setImporterDismissed(true); }}
+              onClose={() => setShowImporter(false)}
               platform={platform}
             />
           </div>

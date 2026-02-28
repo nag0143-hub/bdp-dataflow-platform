@@ -19,7 +19,7 @@ const ConnectionCard = memo(function ConnectionCard({
   const prereq = getPrereqSummary(connection.id);
 
   return (
-    <Card className="hover:shadow-md transition-shadow">
+    <Card className={`hover:shadow-md transition-shadow border-l-4 ${platformConfig[connection.platform]?.borderColor || "border-l-slate-300"}`}>
       <CardContent className="p-5">
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-3">

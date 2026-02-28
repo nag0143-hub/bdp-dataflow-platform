@@ -11,16 +11,27 @@ import DataMaskingConfig from "@/components/DataMaskingConfig";
 import SLAConfig from "@/components/SLAConfig";
 import { cn } from "@/lib/utils";
 
-const NAV_SECTIONS = [
-  { id: "cleansing", label: "Data Cleansing", icon: Zap, color: "text-amber-600" },
-  { id: "column_mapping", label: "Column Mapping", icon: Columns, color: "text-[#0060AF]" },
-  { id: "quality", label: "Data Quality", icon: FileText, color: "text-emerald-600" },
-  { id: "security", label: "Security & Masking", icon: Shield, color: "text-[#0060AF]" },
-  { id: "sla", label: "SLA Configuration", icon: ShieldCheck, color: "text-blue-600" },
+const ALL_NAV_SECTIONS = [
+  { id: "column_mapping", featureKey: "column_mapping", label: "Column Mapping", icon: Columns, color: "text-[#0060AF]" },
+  { id: "cleansing", featureKey: "data_cleansing", label: "Data Cleansing", icon: Zap, color: "text-amber-600" },
+  { id: "quality", featureKey: "data_quality", label: "Data Quality", icon: FileText, color: "text-emerald-600" },
+  { id: "security", featureKey: "security", label: "Security & Masking", icon: Shield, color: "text-[#0060AF]" },
+  { id: "sla", featureKey: "sla", label: "SLA Configuration", icon: ShieldCheck, color: "text-blue-600" },
 ];
 
 export default function AdvancedTabContent({ formData, setFormData }) {
-  const [activeSection, setActiveSection] = useState("cleansing");
+  const features = formData.advanced_features || {};
+  const NAV_SECTIONS = ALL_NAV_SECTIONS.filter(s =>
+    s.featureKey === "column_mapping" || features[s.featureKey]
+  );
+  const [activeSection, setActiveSection] = useState(() => NAV_SECTIONS[0]?.id || "column_mapping");
+
+  useEffect(() => {
+    if (!NAV_SECTIONS.some(s => s.id === activeSection)) {
+      setActiveSection(NAV_SECTIONS[0]?.id || "column_mapping");
+    }
+  }, [formData.advanced_features]);
+
   const datasetKey = (d) => `${d.schema}.${d.table}`;
   const [activeDataset, setActiveDataset] = useState(
     formData.selected_datasets?.[0] ? datasetKey(formData.selected_datasets[0]) : ""

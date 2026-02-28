@@ -100,7 +100,7 @@ router.post('/connections', async (req, res) => {
 
     const table = entityNameToTable('Connection');
     const data = {
-      name, host: validatedHost, platform: 'airflow', connection_type: 'orchestrator',
+      name, host: validatedHost, platform: 'airflow',
       auth_method: auth_method || 'bearer', username, password, api_token, status: 'active',
       dags_folder: dags_folder || '',
     };
@@ -434,6 +434,94 @@ router.delete('/:connectionId/dags-folder/:filename', async (req, res) => {
   } catch (err) {
     if (err.code === 'ENOENT') res.status(404).json({ error: 'File not found' });
     else res.status(500).json({ error: err.message });
+  }
+});
+
+function toDagId(pipelineName) {
+  return `dataflow__${(pipelineName || 'pipeline').replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()}`;
+}
+
+function airflowStateToStatus(state) {
+  if (!state) return null;
+  const map = {
+    success: 'completed',
+    failed: 'failed',
+    running: 'running',
+    queued: 'running',
+    up_for_retry: 'running',
+    up_for_reschedule: 'running',
+  };
+  return map[state] || null;
+}
+
+router.post('/sync-pipeline-status', async (req, res) => {
+  try {
+    const connTable = entityNameToTable('Connection');
+    const pipeTable = entityNameToTable('Pipeline');
+
+    const airflowConns = await pool.query(
+      `SELECT * FROM "${connTable}" WHERE data->>'platform' = 'airflow' AND data->>'status' = 'active'`
+    );
+
+    if (airflowConns.rows.length === 0) {
+      return res.json({ synced: 0, message: 'No active Airflow connections' });
+    }
+
+    const pipelines = await pool.query(`SELECT * FROM "${pipeTable}"`);
+    if (pipelines.rows.length === 0) {
+      return res.json({ synced: 0, message: 'No pipelines' });
+    }
+
+    const pipelinesByDagId = new Map();
+    for (const row of pipelines.rows) {
+      const data = row.data || {};
+      const dagId = toDagId(data.name);
+      pipelinesByDagId.set(dagId, { id: row.id, data });
+    }
+
+    let synced = 0;
+    const results = [];
+
+    for (const connRow of airflowConns.rows) {
+      const conn = formatRecord(connRow);
+      try {
+        const dagIds = [...pipelinesByDagId.keys()];
+
+        for (const dagId of dagIds) {
+          try {
+            const runData = await airflowFetch(conn,
+              `/dags/${encodeURIComponent(dagId)}/dagRuns?limit=1&order_by=-execution_date`
+            );
+            const latestRun = (runData.dag_runs || [])[0];
+            if (!latestRun) continue;
+
+            const newStatus = airflowStateToStatus(latestRun.state);
+            if (!newStatus) continue;
+
+            const pipeline = pipelinesByDagId.get(dagId);
+            if (pipeline.data.status !== newStatus) {
+              const updatedData = { ...pipeline.data, status: newStatus };
+              await pool.query(
+                `UPDATE "${pipeTable}" SET data = $1, updated_date = NOW() WHERE id = $2`,
+                [JSON.stringify(updatedData), pipeline.id]
+              );
+              synced++;
+              results.push({ dagId, oldStatus: pipeline.data.status, newStatus, airflowState: latestRun.state });
+            }
+          } catch (dagErr) {
+            if (!dagErr.message?.includes('404')) {
+              results.push({ dagId, error: dagErr.message });
+            }
+          }
+        }
+      } catch (connErr) {
+        results.push({ connection: conn.name, error: connErr.message });
+      }
+    }
+
+    res.json({ synced, total: pipelines.rows.length, results });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 

@@ -11,7 +11,7 @@ import ScheduleSettings from "@/components/JobFormTabs/ScheduleSettings";
 import DeployTabContent from "@/components/DeployTabContent";
 import { dataflow } from '@/api/client';
 import { toast } from "sonner";
-import { Maximize2, Minimize2, CheckCircle2 } from "lucide-react";
+import { Maximize2, Minimize2, CheckCircle2, ChevronLeft, ChevronRight, Save, X } from "lucide-react";
 
 export default function JobFormDialog({
   open,
@@ -318,103 +318,106 @@ export default function JobFormDialog({
             </div>
           </Tabs>
 
-          {/* Footer buttons per tab */}
-          {activeTab === "deploy" ? (
-            <div className="mt-6 pt-4 border-t border-slate-200 dark:border-slate-700 flex justify-between gap-3">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setActiveTab("review")}
-                disabled={deployStatus === "deploying"}
-              >
-                Back to Review
-              </Button>
-              <div className="flex gap-3">
-                {deployStatus === "success" ? (
+          <div className="mt-6 pt-4 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              {currentTabIndex > 0 && activeTab !== "deploy" && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setActiveTab(allTabs[currentTabIndex - 1])}
+                  className="gap-1.5"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  Back
+                </Button>
+              )}
+              {activeTab === "deploy" && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setActiveTab("review")}
+                  disabled={deployStatus === "deploying"}
+                  className="gap-1.5"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  Back to Review
+                </Button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              {deployStatus === "success" ? (
+                <Button
+                  type="button"
+                  onClick={() => onOpenChange(false)}
+                  className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  Done — Close
+                </Button>
+              ) : (
+                <>
                   <Button
                     type="button"
+                    variant="ghost"
+                    size="sm"
                     onClick={() => onOpenChange(false)}
-                    className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+                    disabled={deployStatus === "deploying"}
+                    className="text-slate-500"
                   >
-                    <CheckCircle2 className="w-4 h-4" />
-                    Done — Close
+                    <X className="w-4 h-4 mr-1" />
+                    Cancel
                   </Button>
-                ) : (
-                  <>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleSaveDraft}
+                    disabled={saving || deployStatus === "deploying"}
+                    className="gap-1.5"
+                  >
+                    <Save className="w-3.5 h-3.5" />
+                    {saving ? "Saving..." : "Save Draft"}
+                  </Button>
+                  {activeTab === "review" ? (
                     <Button
                       type="button"
-                      variant="outline"
-                      onClick={() => onOpenChange(false)}
-                      disabled={deployStatus === "deploying"}
+                      onClick={() => {
+                        if (isValid) {
+                          handleNext();
+                        } else {
+                          toast.error("Please complete all required fields before proceeding to deploy");
+                        }
+                      }}
+                      disabled={!isValid}
+                      className="gap-1.5 bg-[#0060AF] hover:bg-[#004d8c] text-white"
                     >
-                      Cancel
+                      Proceed to Deploy
+                      <ChevronRight className="w-4 h-4" />
                     </Button>
+                  ) : activeTab !== "deploy" ? (
                     <Button
                       type="button"
-                      variant="secondary"
-                      onClick={handleSaveDraft}
-                      disabled={saving || deployStatus === "deploying"}
+                      onClick={handleNext}
+                      className="gap-1.5 bg-[#0060AF] hover:bg-[#004d8c] text-white"
                     >
-                      {saving ? "Saving..." : "Save as Draft"}
+                      {activeTab === "settings" ? (canShowAdvanced ? "Next: Advanced" : "Next: Review") : "Next"}
+                      <ChevronRight className="w-4 h-4" />
                     </Button>
+                  ) : (
                     <Button
                       type="button"
                       onClick={handleSaveAndClose}
                       disabled={saving || !isValid || deployStatus === "deploying"}
+                      className="gap-1.5 bg-[#0060AF] hover:bg-[#004d8c] text-white"
                     >
                       {saving ? "Saving..." : "Save & Close"}
                     </Button>
-                  </>
-                )}
-              </div>
+                  )}
+                </>
+              )}
             </div>
-          ) : activeTab === "review" ? (
-            <div className="mt-6 pt-4 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-3">
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={handleSaveDraft}
-                disabled={saving}
-              >
-                {saving ? "Saving..." : "Save as Draft"}
-              </Button>
-              <Button
-                type="button"
-                onClick={() => {
-                  if (isValid) {
-                    handleNext();
-                  } else {
-                    toast.error("Please complete all required fields before proceeding to deploy");
-                  }
-                }}
-                disabled={!isValid}
-                className="bg-[#0060AF] hover:bg-[#004d8c] text-white"
-              >
-                Proceed to Deploy
-              </Button>
-            </div>
-          ) : (
-            <div className="mt-6 pt-4 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-3">
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={handleSaveDraft}
-                disabled={saving}
-                className="mr-2"
-              >
-                {saving ? "Saving..." : "Save as Draft"}
-              </Button>
-              <Button type="button" onClick={handleNext}>
-                Next
-              </Button>
-            </div>
-          )}
+          </div>
         </form>
       </DialogContent>
     </Dialog>

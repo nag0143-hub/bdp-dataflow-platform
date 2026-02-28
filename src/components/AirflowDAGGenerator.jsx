@@ -99,10 +99,15 @@ ${rendered}`;
 
   const isEventDriven = job.schedule_type === "event_driven";
   const cronExpr = job.schedule_type === "manual" || isEventDriven ? null
-    : job.schedule_type === "hourly" ? "0 * * * *"
-    : job.schedule_type === "daily" ? "0 0 * * *"
-    : job.schedule_type === "weekly" ? "0 0 * * 0"
-    : job.cron_expression || null;
+    : job.cron_expression || (
+      job.schedule_type === "hourly" ? "0 * * * *"
+      : job.schedule_type === "daily" ? "0 0 * * *"
+      : job.schedule_type === "weekly" ? "0 0 * * 0"
+      : job.schedule_type === "monthly" ? "0 0 1 * *"
+      : job.schedule_type === "quarterly" ? "0 0 1 1,4,7,10 *"
+      : job.schedule_type === "yearly" ? "0 0 1 1 *"
+      : null
+    );
   const scheduleStr = cronExpr ? `"${cronExpr}"` : "None";
 
   const useSpark = resolvedOp === "SparkSubmitOperator";
@@ -223,12 +228,12 @@ ${operatorImport}${sensorImport}
 
 default_args = {
     "owner": "${job.assignment_group || "dataflow"}",
-    "depends_on_past": False,
+    "depends_on_past": ${job.depends_on_past ? "True" : "False"},
     "email_on_failure": ${job.email ? "True" : "False"},
-    "email_on_retry": False,
+    "email_on_retry": ${job.email_on_retry ? "True" : "False"},
     ${job.email ? `"email": ["${job.email}"],` : ""}
     "retries": ${job.retry_config?.max_retries ?? 3},
-    "retry_delay": timedelta(seconds=${job.retry_config?.retry_delay_seconds ?? 60}),
+    "retry_delay": timedelta(seconds=${job.retry_config?.retry_delay_seconds ?? 60}),${job.retry_config?.retry_exponential_backoff ? `\n    "retry_exponential_backoff": True,` : ""}${job.wait_for_downstream ? `\n    "wait_for_downstream": True,` : ""}${job.sla_seconds ? `\n    "sla": timedelta(seconds=${job.sla_seconds}),` : ""}${job.execution_timeout ? `\n    "execution_timeout": timedelta(seconds=${job.execution_timeout}),` : ""}
 }
 
 with DAG(
@@ -236,9 +241,9 @@ with DAG(
     default_args=default_args,
     description="${(job.description || "").replace(/"/g, '\\"')}",
     schedule_interval=${scheduleStr},
-    start_date=datetime(2024, 1, 1),
-    catchup=False,
-    tags=["dataflow", "${opTag}", "${triggerTag}"],
+    start_date=datetime(${(() => { const d = job.start_date || "2024-01-01"; const p = d.split("-"); return `${p[0]}, ${parseInt(p[1])}, ${parseInt(p[2])}`; })()}),
+    ${job.end_date ? `end_date=datetime(${(() => { const p = job.end_date.split("-"); return `${p[0]}, ${parseInt(p[1])}, ${parseInt(p[2])}`; })()}),` : ""}catchup=${job.catchup ? "True" : "False"},${job.use_custom_calendar ? `\n    # Calendar Timetable: include=${job.include_calendar_id || "none"}, exclude=${job.exclude_calendar_id || "none"}${job.custom_include_dates ? `\n    # Custom include dates: ${job.custom_include_dates}` : ""}${job.custom_exclude_dates ? `\n    # Custom exclude dates: ${job.custom_exclude_dates}` : ""}` : ""}
+    tags=["dataflow", "${opTag}", "${triggerTag}"${(job.dag_tags || []).length > 0 ? `, ${job.dag_tags.map(t => `"${t}"`).join(", ")}` : ""}],${job.concurrency && job.concurrency !== 16 ? `\n    concurrency=${job.concurrency},` : ""}${job.max_active_runs > 1 ? `\n    max_active_runs=${job.max_active_runs},` : ""}${job.dagrun_timeout > 0 ? `\n    dagrun_timeout=timedelta(minutes=${job.dagrun_timeout}),` : ""}${job.is_paused_upon_creation !== false ? "" : `\n    is_paused_upon_creation=False,`}
 ) as dag:
 ${sensorBlock}${taskDefs.join("\n")}
 ${dependencyChain}`;
@@ -247,10 +252,12 @@ ${dependencyChain}`;
 function resolveSchedule(job) {
   const st = job.schedule_type || "manual";
   if (st === "manual") return "@once";
-  if (st === "hourly") return "@hourly";
-  if (st === "daily") return "@daily";
-  if (st === "weekly") return "@weekly";
-  if (st === "monthly") return "@monthly";
+  if (st === "hourly") return job.cron_expression || "@hourly";
+  if (st === "daily") return job.cron_expression || "@daily";
+  if (st === "weekly") return job.cron_expression || "@weekly";
+  if (st === "monthly") return job.cron_expression || "@monthly";
+  if (st === "quarterly") return job.cron_expression || "0 0 1 1,4,7,10 *";
+  if (st === "yearly") return job.cron_expression || "@yearly";
   if (st === "event_driven") return null;
   if (st === "every_minutes") return job.cron_expression || "*/15 * * * *";
   if (st === "every_hours") return job.cron_expression || "0 */2 * * *";
@@ -329,12 +336,24 @@ export function generateAirflowDAGYaml(job, connections) {
   const defaultArgs = {
     owner: job.assignment_group || "data-eng",
     email_on_failure: !!job.email,
+    email_on_retry: !!job.email_on_retry,
     retries: job.retry_config?.max_retries ?? 2,
     retry_delay_sec: job.retry_config?.retry_delay_seconds ?? 60,
-    start_date: "2024-01-01",
+    start_date: job.start_date || "2024-01-01",
+    depends_on_past: !!job.depends_on_past,
+    wait_for_downstream: !!job.wait_for_downstream,
   };
   if (job.email) {
     defaultArgs.email = [job.email];
+  }
+  if (job.retry_config?.retry_exponential_backoff) {
+    defaultArgs.retry_exponential_backoff = true;
+  }
+  if (job.execution_timeout) {
+    defaultArgs.execution_timeout_sec = job.execution_timeout;
+  }
+  if (job.sla_seconds) {
+    defaultArgs.sla_sec = job.sla_seconds;
   }
 
   const tasks = {};
@@ -451,14 +470,43 @@ export function generateAirflowDAGYaml(job, connections) {
     });
   }
 
-  const dagObj = {};
-  dagObj[dagId] = {
+  const dagDef = {
     default_args: defaultArgs,
     schedule: schedule,
-    catchup: false,
+    catchup: !!job.catchup,
     description: job.description || `DataFlow pipeline: ${job.name || "untitled"}`,
+    is_paused_upon_creation: job.is_paused_upon_creation !== false,
+    tags: ["dataflow", ...(job.dag_tags || [])],
     tasks: tasks,
   };
+  if (job.max_active_runs && job.max_active_runs > 1) {
+    dagDef.max_active_runs = job.max_active_runs;
+  }
+  if (job.concurrency && job.concurrency !== 16) {
+    dagDef.concurrency = job.concurrency;
+  }
+  if (job.dagrun_timeout && job.dagrun_timeout > 0) {
+    dagDef.dagrun_timeout_sec = job.dagrun_timeout * 60;
+  }
+  if (job.end_date) {
+    dagDef.end_date = job.end_date;
+  }
+  if (job.pool) {
+    dagDef.pool = job.pool;
+  }
+  if (job.priority_weight && job.priority_weight > 1) {
+    dagDef.priority_weight = job.priority_weight;
+  }
+  if (job.use_custom_calendar) {
+    dagDef.calendar_timetable = {
+      include_calendar: job.include_calendar_id || null,
+      exclude_calendar: job.exclude_calendar_id || null,
+    };
+    if (job.custom_include_dates) dagDef.calendar_timetable.custom_include_dates = job.custom_include_dates;
+    if (job.custom_exclude_dates) dagDef.calendar_timetable.custom_exclude_dates = job.custom_exclude_dates;
+  }
+  const dagObj = {};
+  dagObj[dagId] = dagDef;
 
   const lines = [];
   lines.push(`# dag-factory DAG Definition — Generated by DataFlow`);
